@@ -3,196 +3,177 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>White Elephant 🎁</title>
+  <title>White Elephant Gift Exchange</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@500;700&family=DM+Sans:wght@400;500;600&display=swap" rel="stylesheet">
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/socket.io/4.7.2/socket.io.min.js"></script>
   <style>
+    :root {
+      --forest: #1a472a;
+      --forest-light: #2d5a3d;
+      --gold: #d4af37;
+      --gold-light: #e8c85a;
+      --cream: #faf8f3;
+      --cream-dark: #f0ebe0;
+      --burgundy: #722f37;
+      --snow: #ffffff;
+      --charcoal: #2c2c2c;
+      --shadow: rgba(26, 71, 42, 0.15);
+      --shadow-heavy: rgba(26, 71, 42, 0.25);
+    }
+
     * {
       margin: 0;
       padding: 0;
       box-sizing: border-box;
     }
 
-    :root {
-      --bg-primary: #1a1612;
-      --bg-secondary: #2a2420;
-      --bg-card: #322c28;
-      --accent-warm: #e8a87c;
-      --accent-red: #c94c4c;
-      --accent-green: #6b9080;
-      --accent-gold: #d4a574;
-      --text-primary: #f5f0eb;
-      --text-secondary: #a89f97;
-      --text-muted: #6d6560;
-      --border-subtle: rgba(232, 168, 124, 0.15);
-      --shadow-glow: rgba(232, 168, 124, 0.2);
-    }
-
-    html, body, #root {
-      height: 100%;
-      width: 100%;
-    }
-
     body {
-      font-family: 'DM Sans', -apple-system, sans-serif;
-      background: var(--bg-primary);
-      color: var(--text-primary);
+      font-family: 'DM Sans', sans-serif;
+      background: var(--cream);
+      color: var(--charcoal);
+      min-height: 100vh;
+      min-height: 100dvh;
       overflow-x: hidden;
     }
 
-    .app {
-      min-height: 100%;
-      display: flex;
-      flex-direction: column;
-      position: relative;
+    /* Background pattern */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: 
+        radial-gradient(circle at 20% 80%, rgba(212, 175, 55, 0.08) 0%, transparent 50%),
+        radial-gradient(circle at 80% 20%, rgba(26, 71, 42, 0.06) 0%, transparent 50%),
+        radial-gradient(circle at 50% 50%, rgba(114, 47, 55, 0.04) 0%, transparent 70%);
+      pointer-events: none;
+      z-index: 0;
     }
 
-    /* Animated background */
-    .bg-pattern {
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      pointer-events: none;
-      opacity: 0.03;
-      background-image: 
-        radial-gradient(circle at 20% 30%, var(--accent-warm) 1px, transparent 1px),
-        radial-gradient(circle at 80% 70%, var(--accent-gold) 1px, transparent 1px);
-      background-size: 60px 60px, 80px 80px;
-      animation: float 30s ease-in-out infinite;
+    .screen {
+      display: none;
+      flex-direction: column;
+      min-height: 100vh;
+      min-height: 100dvh;
+      padding: 1.5rem;
+      position: relative;
+      z-index: 1;
+      animation: fadeIn 0.4s ease-out;
+    }
+
+    .screen.active {
+      display: flex;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
     }
 
     @keyframes float {
-      0%, 100% { transform: translate(0, 0); }
-      50% { transform: translate(-20px, -20px); }
+      0%, 100% { transform: translateY(0) rotate(0deg); }
+      50% { transform: translateY(-10px) rotate(2deg); }
+    }
+
+    @keyframes pulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.05); }
+    }
+
+    @keyframes shimmer {
+      0% { background-position: -200% center; }
+      100% { background-position: 200% center; }
+    }
+
+    @keyframes unwrap {
+      0% { transform: scale(1) rotate(0deg); }
+      25% { transform: scale(1.1) rotate(-5deg); }
+      50% { transform: scale(1.2) rotate(5deg); }
+      75% { transform: scale(1.1) rotate(-3deg); }
+      100% { transform: scale(1) rotate(0deg); }
+    }
+
+    h1 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 700;
+      color: var(--forest);
+    }
+
+    h2, h3 {
+      font-family: 'Playfair Display', serif;
+      font-weight: 500;
+      color: var(--forest);
     }
 
     /* Header */
     .header {
-      padding: 1.5rem;
       text-align: center;
-      position: relative;
-      z-index: 1;
+      padding: 1rem 0 2rem;
     }
 
     .logo {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.75rem;
-      font-weight: 700;
-      color: var(--accent-warm);
-      letter-spacing: 0.02em;
+      font-size: 2.5rem;
+      margin-bottom: 0.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
     }
 
-    .logo-emoji {
-      display: inline-block;
-      animation: wiggle 2s ease-in-out infinite;
+    .logo-icon {
+      font-size: 2rem;
+      animation: float 3s ease-in-out infinite;
     }
 
-    @keyframes wiggle {
-      0%, 100% { transform: rotate(-5deg); }
-      50% { transform: rotate(5deg); }
-    }
-
-    .subtitle {
-      font-size: 0.75rem;
-      color: var(--text-muted);
-      text-transform: uppercase;
-      letter-spacing: 0.15em;
-      margin-top: 0.25rem;
-    }
-
-    /* Main content */
-    .main {
-      flex: 1;
-      padding: 1rem;
-      max-width: 600px;
-      margin: 0 auto;
-      width: 100%;
-      position: relative;
-      z-index: 1;
+    .tagline {
+      color: var(--forest-light);
+      font-size: 0.95rem;
+      opacity: 0.8;
     }
 
     /* Cards */
     .card {
-      background: var(--bg-card);
+      background: var(--snow);
       border-radius: 1.25rem;
-      padding: 1.5rem;
-      margin-bottom: 1rem;
-      border: 1px solid var(--border-subtle);
-      box-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
+      padding: 1.75rem;
+      box-shadow: 0 4px 20px var(--shadow);
+      margin-bottom: 1.25rem;
     }
 
     .card-title {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.25rem;
-      font-weight: 500;
+      font-size: 1.1rem;
       margin-bottom: 1rem;
-      color: var(--text-primary);
-    }
-
-    /* Inputs */
-    .input-group {
-      margin-bottom: 1rem;
-    }
-
-    .label {
-      display: block;
-      font-size: 0.75rem;
-      font-weight: 600;
-      color: var(--text-secondary);
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-      margin-bottom: 0.5rem;
-    }
-
-    .input {
-      width: 100%;
-      padding: 0.875rem 1rem;
-      background: var(--bg-secondary);
-      border: 1px solid var(--border-subtle);
-      border-radius: 0.75rem;
-      color: var(--text-primary);
-      font-size: 1rem;
-      font-family: inherit;
-      transition: all 0.2s;
-    }
-
-    .input:focus {
-      outline: none;
-      border-color: var(--accent-warm);
-      box-shadow: 0 0 0 3px var(--shadow-glow);
-    }
-
-    .input::placeholder {
-      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
     }
 
     /* Buttons */
     .btn {
-      width: 100%;
-      padding: 1rem 1.5rem;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 1rem 1.75rem;
       border: none;
-      border-radius: 0.75rem;
-      font-size: 0.9rem;
+      border-radius: 0.875rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
       font-weight: 600;
-      font-family: inherit;
       cursor: pointer;
-      transition: all 0.2s;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
+      transition: all 0.2s ease;
+      width: 100%;
     }
 
     .btn-primary {
-      background: linear-gradient(135deg, var(--accent-warm) 0%, var(--accent-gold) 100%);
-      color: var(--bg-primary);
+      background: linear-gradient(135deg, var(--forest) 0%, var(--forest-light) 100%);
+      color: var(--snow);
+      box-shadow: 0 4px 15px var(--shadow-heavy);
     }
 
     .btn-primary:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px var(--shadow-glow);
+      box-shadow: 0 6px 20px var(--shadow-heavy);
     }
 
     .btn-primary:active {
@@ -200,1057 +181,1478 @@
     }
 
     .btn-primary:disabled {
-      opacity: 0.5;
+      opacity: 0.6;
       cursor: not-allowed;
       transform: none;
     }
 
     .btn-secondary {
-      background: var(--bg-secondary);
-      color: var(--text-primary);
-      border: 1px solid var(--border-subtle);
+      background: var(--cream);
+      color: var(--forest);
+      border: 2px solid var(--forest);
     }
 
     .btn-secondary:hover {
-      background: var(--bg-card);
-      border-color: var(--accent-warm);
+      background: var(--forest);
+      color: var(--snow);
     }
 
-    .btn-steal {
-      background: linear-gradient(135deg, var(--accent-red) 0%, #a83a3a 100%);
-      color: white;
+    .btn-gold {
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+      color: var(--charcoal);
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
     }
 
-    .btn-steal:hover {
+    .btn-gold:hover {
       transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(201, 76, 76, 0.3);
+      box-shadow: 0 6px 20px rgba(212, 175, 55, 0.4);
     }
 
-    .btn-pool {
-      background: linear-gradient(135deg, var(--accent-green) 0%, #5a7a6d 100%);
-      color: white;
+    .btn-small {
+      padding: 0.625rem 1rem;
+      font-size: 0.875rem;
     }
 
-    .btn-pool:hover {
-      transform: translateY(-2px);
-      box-shadow: 0 8px 24px rgba(107, 144, 128, 0.3);
+    /* Inputs */
+    .input-group {
+      margin-bottom: 1.25rem;
     }
 
-    /* Image upload */
-    .image-upload {
+    .input-group label {
+      display: block;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--forest);
+    }
+
+    .input-group input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      border: 2px solid var(--cream-dark);
+      border-radius: 0.75rem;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 1rem;
+      transition: border-color 0.2s ease;
+    }
+
+    .input-group input:focus {
+      outline: none;
+      border-color: var(--forest);
+    }
+
+    /* Image capture */
+    .image-capture {
       position: relative;
       width: 100%;
       aspect-ratio: 1;
-      max-width: 200px;
-      margin: 0 auto 1rem;
+      max-width: 280px;
+      margin: 0 auto 1.25rem;
       border-radius: 1rem;
       overflow: hidden;
-      background: var(--bg-secondary);
-      border: 2px dashed var(--border-subtle);
-      cursor: pointer;
-      transition: all 0.2s;
+      background: var(--cream-dark);
+      border: 3px dashed var(--forest-light);
     }
 
-    .image-upload:hover {
-      border-color: var(--accent-warm);
-    }
-
-    .image-upload.has-image {
+    .image-capture.has-image {
       border-style: solid;
+      border-color: var(--gold);
     }
 
-    .image-upload img {
+    .image-capture video,
+    .image-capture img {
       width: 100%;
       height: 100%;
       object-fit: cover;
     }
 
-    .image-upload-placeholder {
+    .image-capture .placeholder {
       position: absolute;
       inset: 0;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      color: var(--text-muted);
+      color: var(--forest-light);
+      gap: 0.5rem;
     }
 
-    .image-upload-icon {
-      font-size: 2.5rem;
+    .placeholder-icon {
+      font-size: 3rem;
+      opacity: 0.6;
+    }
+
+    .capture-btns {
+      display: flex;
+      gap: 0.75rem;
+      margin-bottom: 1rem;
+    }
+
+    .capture-btns .btn {
+      flex: 1;
+      padding: 0.75rem 1rem;
+    }
+
+    /* Room code display */
+    .room-code-display {
+      text-align: center;
+      padding: 1.5rem;
+      background: linear-gradient(135deg, var(--forest) 0%, var(--forest-light) 100%);
+      border-radius: 1rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .room-code-label {
+      color: rgba(255, 255, 255, 0.8);
+      font-size: 0.875rem;
       margin-bottom: 0.5rem;
     }
 
-    .image-upload-text {
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .image-upload input {
-      display: none;
-    }
-
-    /* Camera buttons */
-    .camera-options {
-      display: flex;
-      gap: 0.5rem;
-      margin-top: 0.75rem;
-    }
-
-    .camera-options .btn {
-      flex: 1;
-      padding: 0.75rem;
-      font-size: 0.75rem;
-    }
-
-    /* Avatar */
-    .avatar {
-      width: 60px;
-      height: 60px;
-      border-radius: 50%;
-      object-fit: cover;
-      border: 2px solid var(--accent-warm);
-    }
-
-    .avatar-small {
-      width: 44px;
-      height: 44px;
+    .room-code {
+      font-family: 'Playfair Display', serif;
+      font-size: 2.5rem;
+      font-weight: 700;
+      color: var(--gold);
+      letter-spacing: 0.2em;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
 
     /* Players list */
     .players-grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
-      gap: 0.75rem;
+      gap: 1rem;
     }
 
     .player-card {
-      background: var(--bg-secondary);
+      background: var(--snow);
       border-radius: 1rem;
       padding: 1rem;
       text-align: center;
-      border: 1px solid var(--border-subtle);
-      transition: all 0.2s;
+      box-shadow: 0 2px 10px var(--shadow);
       position: relative;
+      transition: all 0.3s ease;
     }
 
     .player-card.current-turn {
-      border-color: var(--accent-warm);
-      box-shadow: 0 0 20px var(--shadow-glow);
-      animation: pulse 2s ease-in-out infinite;
+      box-shadow: 0 0 0 3px var(--gold), 0 4px 20px var(--shadow-heavy);
+      animation: pulse 1.5s ease-in-out infinite;
     }
 
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 20px var(--shadow-glow); }
-      50% { box-shadow: 0 0 30px var(--shadow-glow), 0 0 40px var(--shadow-glow); }
+    .player-card.has-gift::after {
+      content: '🎁';
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      font-size: 1.5rem;
+      filter: drop-shadow(0 2px 4px rgba(0,0,0,0.2));
     }
 
-    .player-card.has-gift {
-      background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(107, 144, 128, 0.2) 100%);
-    }
-
-    .player-card.stealable {
+    .player-card.can-steal {
       cursor: pointer;
     }
 
-    .player-card.stealable:hover {
-      border-color: var(--accent-red);
-      transform: translateY(-2px);
+    .player-card.can-steal:hover {
+      transform: translateY(-4px);
+      box-shadow: 0 0 0 3px var(--burgundy), 0 8px 25px var(--shadow-heavy);
     }
 
-    .player-card.locked {
-      opacity: 0.6;
+    .player-avatar {
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 0.75rem;
+      border: 3px solid var(--cream);
+      box-shadow: 0 2px 8px var(--shadow);
     }
 
     .player-name {
       font-weight: 600;
-      font-size: 0.875rem;
-      margin-top: 0.5rem;
+      font-size: 0.9rem;
+      color: var(--forest);
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
 
     .player-status {
-      font-size: 0.7rem;
-      color: var(--text-muted);
+      font-size: 0.75rem;
+      color: var(--forest-light);
       margin-top: 0.25rem;
-      text-transform: uppercase;
-      letter-spacing: 0.05em;
     }
 
-    .player-status.ready {
-      color: var(--accent-green);
-    }
-
-    .gift-indicator {
-      position: absolute;
-      top: -8px;
-      right: -8px;
-      width: 32px;
-      height: 32px;
-      background: var(--accent-red);
-      border-radius: 50%;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 1rem;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-    }
-
-    .steal-count {
-      position: absolute;
-      bottom: -4px;
-      right: -4px;
-      background: var(--accent-warm);
-      color: var(--bg-primary);
+    .host-badge {
+      display: inline-block;
+      background: var(--gold);
+      color: var(--charcoal);
       font-size: 0.65rem;
-      font-weight: 700;
-      padding: 0.15rem 0.4rem;
-      border-radius: 0.5rem;
+      font-weight: 600;
+      padding: 0.15rem 0.5rem;
+      border-radius: 1rem;
+      margin-top: 0.35rem;
     }
 
     /* Gift pool */
     .gift-pool {
+      background: linear-gradient(135deg, var(--cream-dark) 0%, var(--cream) 100%);
+      border-radius: 1.25rem;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      min-height: 200px;
+    }
+
+    .pool-title {
+      text-align: center;
+      margin-bottom: 1rem;
+      font-size: 1.1rem;
+    }
+
+    .gifts-grid {
       display: flex;
       flex-wrap: wrap;
-      gap: 0.5rem;
+      gap: 1rem;
       justify-content: center;
-      padding: 1rem;
-      background: var(--bg-secondary);
-      border-radius: 1rem;
-      min-height: 80px;
     }
 
     .gift-box {
-      width: 50px;
-      height: 50px;
-      background: linear-gradient(135deg, var(--accent-red) 0%, #a83a3a 100%);
-      border-radius: 0.5rem;
+      width: 80px;
+      height: 80px;
+      background: linear-gradient(135deg, var(--burgundy) 0%, #8b3a42 100%);
+      border-radius: 0.75rem;
       display: flex;
       align-items: center;
       justify-content: center;
+      font-size: 2.5rem;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      box-shadow: 0 4px 15px rgba(114, 47, 55, 0.3);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .gift-box::before {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: -10%;
+      right: -10%;
+      height: 12px;
+      background: var(--gold);
+      transform: translateY(-50%);
+    }
+
+    .gift-box::after {
+      content: '';
+      position: absolute;
+      left: 50%;
+      top: -10%;
+      bottom: -10%;
+      width: 12px;
+      background: var(--gold);
+      transform: translateX(-50%);
+    }
+
+    .gift-box:hover {
+      transform: translateY(-5px) rotate(3deg);
+      box-shadow: 0 8px 25px rgba(114, 47, 55, 0.4);
+    }
+
+    .gift-box.selectable {
+      animation: float 2s ease-in-out infinite;
+    }
+
+    .gift-box .bow {
+      position: absolute;
+      top: -5px;
       font-size: 1.5rem;
-      box-shadow: 0 4px 12px rgba(201, 76, 76, 0.3);
-      animation: bob 2s ease-in-out infinite;
-    }
-
-    .gift-box:nth-child(2n) {
-      animation-delay: 0.5s;
-    }
-
-    .gift-box:nth-child(3n) {
-      animation-delay: 1s;
-    }
-
-    @keyframes bob {
-      0%, 100% { transform: translateY(0); }
-      50% { transform: translateY(-5px); }
+      z-index: 1;
     }
 
     /* Turn indicator */
     .turn-indicator {
-      background: linear-gradient(135deg, var(--accent-warm) 0%, var(--accent-gold) 100%);
-      color: var(--bg-primary);
-      padding: 0.75rem 1rem;
-      border-radius: 0.75rem;
+      background: linear-gradient(135deg, var(--gold) 0%, var(--gold-light) 100%);
+      border-radius: 1rem;
+      padding: 1.25rem;
       text-align: center;
-      font-weight: 600;
-      margin-bottom: 1rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 15px rgba(212, 175, 55, 0.3);
     }
 
     .turn-indicator.your-turn {
-      animation: glow 1.5s ease-in-out infinite;
+      animation: pulse 1.5s ease-in-out infinite;
     }
 
-    @keyframes glow {
-      0%, 100% { box-shadow: 0 0 20px var(--shadow-glow); }
-      50% { box-shadow: 0 0 30px var(--shadow-glow), 0 0 40px var(--accent-warm); }
+    .turn-text {
+      font-size: 1rem;
+      font-weight: 600;
+      color: var(--charcoal);
     }
 
-    /* Action buttons */
-    .action-buttons {
+    .turn-name {
+      font-family: 'Playfair Display', serif;
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--forest);
+      margin-top: 0.25rem;
+    }
+
+    .turn-actions {
       display: flex;
       gap: 0.75rem;
       margin-top: 1rem;
     }
 
-    .action-buttons .btn {
+    .turn-actions .btn {
       flex: 1;
     }
 
-    /* Toast notifications */
-    .toast {
-      position: fixed;
-      bottom: 2rem;
-      left: 50%;
-      transform: translateX(-50%);
-      background: var(--bg-card);
-      color: var(--text-primary);
-      padding: 1rem 1.5rem;
-      border-radius: 1rem;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      z-index: 100;
-      animation: slideUp 0.3s ease-out;
-      max-width: calc(100% - 2rem);
-      text-align: center;
-      border: 1px solid var(--border-subtle);
-    }
-
-    @keyframes slideUp {
-      from { transform: translate(-50%, 100%); opacity: 0; }
-      to { transform: translate(-50%, 0); opacity: 1; }
-    }
-
     /* Reveal screen */
-    .reveal-card {
+    .reveal-container {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
       text-align: center;
+      padding: 2rem 0;
+    }
+
+    .reveal-gift {
+      background: var(--snow);
+      border-radius: 1.5rem;
       padding: 2rem;
+      max-width: 350px;
+      width: 100%;
+      box-shadow: 0 8px 40px var(--shadow-heavy);
+      animation: unwrap 0.8s ease-out;
     }
 
     .reveal-gift-image {
       width: 100%;
-      max-width: 280px;
       aspect-ratio: 1;
       object-fit: cover;
       border-radius: 1rem;
-      margin: 1rem auto;
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
-      animation: revealIn 0.5s ease-out;
+      margin-bottom: 1.25rem;
+      box-shadow: 0 4px 15px var(--shadow);
     }
 
-    @keyframes revealIn {
-      from { transform: scale(0.8); opacity: 0; }
-      to { transform: scale(1); opacity: 1; }
-    }
-
-    .reveal-title {
+    .reveal-gift-title {
       font-family: 'Playfair Display', serif;
       font-size: 1.5rem;
-      margin-bottom: 0.5rem;
+      color: var(--forest);
+      margin-bottom: 1.5rem;
     }
 
-    .reveal-recipient {
-      color: var(--accent-warm);
-      font-size: 0.875rem;
+    .reveal-info {
+      display: flex;
+      justify-content: space-between;
+      gap: 1rem;
     }
 
-    /* Game code */
-    .game-code {
-      background: var(--bg-secondary);
-      padding: 0.75rem 1rem;
-      border-radius: 0.75rem;
+    .reveal-person {
+      flex: 1;
       text-align: center;
-      margin-bottom: 1rem;
     }
 
-    .game-code-label {
-      font-size: 0.7rem;
-      color: var(--text-muted);
+    .reveal-person-label {
+      font-size: 0.75rem;
+      color: var(--forest-light);
+      margin-bottom: 0.5rem;
       text-transform: uppercase;
-      letter-spacing: 0.1em;
+      letter-spacing: 0.05em;
     }
 
-    .game-code-value {
-      font-family: 'Playfair Display', serif;
-      font-size: 1.5rem;
-      font-weight: 700;
-      color: var(--accent-warm);
-      letter-spacing: 0.2em;
-      margin-top: 0.25rem;
+    .reveal-person-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      object-fit: cover;
+      margin-bottom: 0.35rem;
+      border: 2px solid var(--cream);
     }
 
-    /* Loading */
-    .loading {
+    .reveal-person-name {
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--forest);
+    }
+
+    .arrow-icon {
       display: flex;
       align-items: center;
-      justify-content: center;
-      gap: 0.5rem;
-      color: var(--text-secondary);
+      font-size: 1.5rem;
+      color: var(--gold);
     }
 
-    .loading-dots {
+    /* Results */
+    .results-list {
       display: flex;
+      flex-direction: column;
+      gap: 1rem;
+    }
+
+    .result-item {
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      background: var(--snow);
+      border-radius: 1rem;
+      padding: 1rem;
+      box-shadow: 0 2px 10px var(--shadow);
+    }
+
+    .result-gift-img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 0.75rem;
+    }
+
+    .result-info {
+      flex: 1;
+    }
+
+    .result-title {
+      font-weight: 600;
+      color: var(--forest);
+      margin-bottom: 0.25rem;
+    }
+
+    .result-people {
+      font-size: 0.85rem;
+      color: var(--forest-light);
+    }
+
+    /* Toast notifications */
+    .toast-container {
+      position: fixed;
+      bottom: 1.5rem;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 0.5rem;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: var(--forest);
+      color: var(--snow);
+      padding: 1rem 1.5rem;
+      border-radius: 1rem;
+      font-weight: 500;
+      box-shadow: 0 4px 20px var(--shadow-heavy);
+      animation: slideUp 0.3s ease-out;
+      text-align: center;
+      max-width: 90vw;
+    }
+
+    @keyframes slideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    /* Waiting dots */
+    .waiting-dots {
+      display: inline-flex;
       gap: 0.25rem;
     }
 
-    .loading-dot {
-      width: 6px;
-      height: 6px;
-      background: var(--accent-warm);
+    .waiting-dots span {
+      width: 8px;
+      height: 8px;
+      background: var(--forest);
       border-radius: 50%;
-      animation: bounce 1.4s ease-in-out infinite both;
+      animation: bounce 1.4s infinite ease-in-out both;
     }
 
-    .loading-dot:nth-child(1) { animation-delay: -0.32s; }
-    .loading-dot:nth-child(2) { animation-delay: -0.16s; }
+    .waiting-dots span:nth-child(1) { animation-delay: -0.32s; }
+    .waiting-dots span:nth-child(2) { animation-delay: -0.16s; }
 
     @keyframes bounce {
       0%, 80%, 100% { transform: scale(0); }
       40% { transform: scale(1); }
     }
 
-    /* Confetti container */
-    .confetti {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      pointer-events: none;
-      z-index: 50;
+    /* Empty state */
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--forest-light);
     }
 
-    .confetti-piece {
-      position: absolute;
-      width: 10px;
-      height: 10px;
-      animation: confetti-fall 4s ease-out forwards;
+    .empty-icon {
+      font-size: 3rem;
+      margin-bottom: 0.5rem;
+      opacity: 0.5;
     }
 
-    @keyframes confetti-fall {
-      0% { transform: translateY(-100px) rotate(0deg); opacity: 1; }
-      100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
-    }
-
-    /* Section divider */
-    .divider {
-      display: flex;
-      align-items: center;
-      gap: 1rem;
-      margin: 1.5rem 0;
-      color: var(--text-muted);
-      font-size: 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.1em;
-    }
-
-    .divider::before,
-    .divider::after {
-      content: '';
+    /* Scrollable area */
+    .scroll-area {
       flex: 1;
-      height: 1px;
-      background: var(--border-subtle);
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
     }
 
-    /* Video preview for camera */
-    .video-preview {
-      width: 100%;
-      aspect-ratio: 1;
-      max-width: 200px;
-      margin: 0 auto;
-      border-radius: 1rem;
-      overflow: hidden;
-      background: var(--bg-secondary);
+    /* Confetti canvas */
+    #confetti {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 999;
     }
 
-    .video-preview video {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
+    /* Hidden file input */
+    input[type="file"] {
+      display: none;
     }
 
-    /* Responsive adjustments */
-    @media (min-width: 480px) {
-      .header {
+    /* Status indicators */
+    .status-ready {
+      color: var(--forest);
+    }
+
+    .status-waiting {
+      color: var(--gold);
+    }
+
+    /* Media queries */
+    @media (min-width: 640px) {
+      .screen {
+        max-width: 500px;
+        margin: 0 auto;
         padding: 2rem;
+      }
+
+      .logo {
+        font-size: 3rem;
+      }
+
+      .players-grid {
+        grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      }
+    }
+
+    @media (max-height: 700px) {
+      .header {
+        padding: 0.5rem 0 1rem;
       }
 
       .logo {
         font-size: 2rem;
       }
 
-      .main {
-        padding: 1.5rem;
-      }
-
       .card {
-        padding: 2rem;
+        padding: 1.25rem;
       }
+    }
+
+    /* Steal mode indicator */
+    .steal-mode-banner {
+      background: linear-gradient(135deg, var(--burgundy) 0%, #8b3a42 100%);
+      color: var(--snow);
+      padding: 0.75rem 1rem;
+      border-radius: 0.75rem;
+      text-align: center;
+      margin-bottom: 1rem;
+      font-weight: 500;
+    }
+
+    /* Your gift preview */
+    .your-gift-preview {
+      background: var(--cream-dark);
+      border-radius: 1rem;
+      padding: 1rem;
+      display: flex;
+      align-items: center;
+      gap: 1rem;
+      margin-top: 1rem;
+    }
+
+    .your-gift-preview img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: 0.75rem;
+    }
+
+    .your-gift-preview .gift-info {
+      flex: 1;
+    }
+
+    .your-gift-preview .gift-label {
+      font-size: 0.75rem;
+      color: var(--forest-light);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+
+    .your-gift-preview .gift-title {
+      font-weight: 600;
+      color: var(--forest);
     }
   </style>
 </head>
 <body>
-  <div id="root"></div>
-  
-  <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
-  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
-  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  
-  <script type="text/babel">
-    const { useState, useEffect, useRef, useCallback } = React;
+  <canvas id="confetti"></canvas>
+  <div class="toast-container" id="toastContainer"></div>
 
-    // Generate random game code
-    const generateGameCode = () => {
-      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-      return Array.from({ length: 4 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
+  <!-- Screen 1: Welcome -->
+  <div id="welcomeScreen" class="screen active">
+    <div class="header">
+      <h1 class="logo">
+        <span class="logo-icon">🎁</span>
+        White Elephant
+      </h1>
+      <p class="tagline">Virtual Gift Exchange</p>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">🎄 Join a Game</h3>
+      <div class="input-group">
+        <label for="roomCodeInput">Room Code</label>
+        <input type="text" id="roomCodeInput" placeholder="Enter 6-letter code" maxlength="6" autocapitalize="characters">
+      </div>
+      <button class="btn btn-primary" id="joinRoomBtn">Join Room</button>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">✨ Create New Game</h3>
+      <p style="color: var(--forest-light); margin-bottom: 1rem; font-size: 0.9rem;">
+        Start a new game and invite your friends with the room code.
+      </p>
+      <button class="btn btn-secondary" id="createRoomBtn">Create Room</button>
+    </div>
+  </div>
+
+  <!-- Screen 2: Create Avatar -->
+  <div id="avatarScreen" class="screen">
+    <div class="header">
+      <h1 class="logo">
+        <span class="logo-icon">📸</span>
+        Your Avatar
+      </h1>
+      <p class="tagline">Let everyone see who you are</p>
+    </div>
+
+    <div class="card">
+      <div class="input-group">
+        <label for="playerNameInput">Your Name</label>
+        <input type="text" id="playerNameInput" placeholder="Enter your name" maxlength="20">
+      </div>
+
+      <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--forest);">Your Photo</label>
+      <div class="image-capture" id="avatarCapture">
+        <video id="avatarVideo" autoplay playsinline style="display: none;"></video>
+        <img id="avatarPreview" style="display: none;">
+        <div class="placeholder" id="avatarPlaceholder">
+          <span class="placeholder-icon">👤</span>
+          <span>Take or upload a photo</span>
+        </div>
+      </div>
+
+      <div class="capture-btns">
+        <button class="btn btn-secondary btn-small" id="avatarCameraBtn">📷 Camera</button>
+        <button class="btn btn-secondary btn-small" id="avatarUploadBtn">📁 Upload</button>
+      </div>
+      <button class="btn btn-secondary btn-small" id="avatarCaptureBtn" style="display: none; margin-bottom: 1rem;">📸 Take Photo</button>
+      <input type="file" id="avatarFileInput" accept="image/*">
+
+      <button class="btn btn-primary" id="saveAvatarBtn" disabled>Continue to Gift</button>
+    </div>
+  </div>
+
+  <!-- Screen 3: Add Gift -->
+  <div id="giftScreen" class="screen">
+    <div class="header">
+      <h1 class="logo">
+        <span class="logo-icon">🎁</span>
+        Your Gift
+      </h1>
+      <p class="tagline">Only you can see this until the reveal</p>
+    </div>
+
+    <div class="card">
+      <div class="input-group">
+        <label for="giftTitleInput">Gift Title</label>
+        <input type="text" id="giftTitleInput" placeholder="What is your gift?" maxlength="50">
+      </div>
+
+      <label style="display: block; font-weight: 500; margin-bottom: 0.5rem; color: var(--forest);">Gift Photo</label>
+      <div class="image-capture" id="giftCapture">
+        <video id="giftVideo" autoplay playsinline style="display: none;"></video>
+        <img id="giftPreview" style="display: none;">
+        <div class="placeholder" id="giftPlaceholder">
+          <span class="placeholder-icon">🎁</span>
+          <span>Take or upload a photo</span>
+        </div>
+      </div>
+
+      <div class="capture-btns">
+        <button class="btn btn-secondary btn-small" id="giftCameraBtn">📷 Camera</button>
+        <button class="btn btn-secondary btn-small" id="giftUploadBtn">📁 Upload</button>
+      </div>
+      <button class="btn btn-secondary btn-small" id="giftCaptureBtn" style="display: none; margin-bottom: 1rem;">📸 Take Photo</button>
+      <input type="file" id="giftFileInput" accept="image/*">
+
+      <button class="btn btn-primary" id="saveGiftBtn" disabled>Join Lobby</button>
+    </div>
+  </div>
+
+  <!-- Screen 4: Lobby -->
+  <div id="lobbyScreen" class="screen">
+    <div class="room-code-display">
+      <div class="room-code-label">Share this code with friends</div>
+      <div class="room-code" id="lobbyRoomCode">------</div>
+      <div id="shareLink" style="margin-top: 0.75rem;">
+        <button class="btn btn-small" id="copyLinkBtn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3); padding: 0.5rem 1rem;">
+          📋 Copy Invite Link
+        </button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3 class="card-title">
+        👥 Players
+        <span class="waiting-dots"><span></span><span></span><span></span></span>
+      </h3>
+      <div class="players-grid" id="lobbyPlayers"></div>
+    </div>
+
+    <div style="margin-top: auto;">
+      <div id="hostControls" style="display: none;">
+        <button class="btn btn-gold" id="startGameBtn" disabled>
+          🎮 Start Game
+        </button>
+        <p style="text-align: center; margin-top: 0.75rem; font-size: 0.85rem; color: var(--forest-light);">
+          All players must submit their gifts first
+        </p>
+      </div>
+      <div id="waitingForHost" style="text-align: center; padding: 1rem;">
+        <p style="color: var(--forest-light);">Waiting for host to start the game...</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 5: Game -->
+  <div id="gameScreen" class="screen">
+    <div class="turn-indicator" id="turnIndicator">
+      <div class="turn-text">Current Turn</div>
+      <div class="turn-name" id="currentTurnName">---</div>
+    </div>
+
+    <div id="yourTurnActions" style="display: none;">
+      <div class="turn-actions">
+        <button class="btn btn-primary" id="takeFromPoolBtn">🎁 Take from Pool</button>
+        <button class="btn btn-secondary" id="stealGiftBtn">😈 Steal a Gift</button>
+      </div>
+    </div>
+
+    <div id="stealModeBanner" class="steal-mode-banner" style="display: none;">
+      👆 Tap a player's card to steal their gift!
+      <button class="btn btn-small btn-secondary" id="cancelStealBtn" style="margin-top: 0.5rem;">Cancel</button>
+    </div>
+
+    <div class="scroll-area">
+      <div class="gift-pool" id="giftPool">
+        <h3 class="pool-title">🎄 Gift Pool</h3>
+        <div class="gifts-grid" id="giftsGrid"></div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title">👥 Players & Their Gifts</h3>
+        <div class="players-grid" id="gamePlayers"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Screen 6: Reveal -->
+  <div id="revealScreen" class="screen">
+    <div class="header">
+      <h1 class="logo">
+        <span class="logo-icon">🎉</span>
+        Gift Reveal
+      </h1>
+      <p class="tagline">Let's see what everyone got!</p>
+    </div>
+
+    <div class="reveal-container" id="revealContainer">
+      <div id="revealGiftCard" class="reveal-gift" style="display: none;">
+        <img id="revealGiftImage" class="reveal-gift-image" src="" alt="Gift">
+        <h2 id="revealGiftTitle" class="reveal-gift-title">---</h2>
+        <div class="reveal-info">
+          <div class="reveal-person">
+            <div class="reveal-person-label">From</div>
+            <img id="revealCreatorAvatar" class="reveal-person-avatar" src="" alt="">
+            <div id="revealCreatorName" class="reveal-person-name">---</div>
+          </div>
+          <div class="arrow-icon">➜</div>
+          <div class="reveal-person">
+            <div class="reveal-person-label">To</div>
+            <img id="revealOwnerAvatar" class="reveal-person-avatar" src="" alt="">
+            <div id="revealOwnerName" class="reveal-person-name">---</div>
+          </div>
+        </div>
+      </div>
+
+      <div id="revealWaiting" style="text-align: center;">
+        <p style="font-size: 1.25rem; color: var(--forest); margin-bottom: 1rem;">Ready to reveal gifts!</p>
+      </div>
+    </div>
+
+    <button class="btn btn-gold" id="revealNextBtn">✨ Reveal Next Gift</button>
+  </div>
+
+  <!-- Screen 7: Finished -->
+  <div id="finishedScreen" class="screen">
+    <div class="header">
+      <h1 class="logo">
+        <span class="logo-icon">🎊</span>
+        Game Complete!
+      </h1>
+      <p class="tagline">Don't forget to mail your gifts!</p>
+    </div>
+
+    <div class="scroll-area">
+      <div class="card">
+        <h3 class="card-title">🎁 Final Results</h3>
+        <div class="results-list" id="resultsList"></div>
+      </div>
+    </div>
+
+    <button class="btn btn-primary" id="playAgainBtn" style="margin-top: 1rem;">🔄 Play Again</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    // App State
+    const state = {
+      socket: null,
+      roomCode: null,
+      playerId: null,
+      playerName: null,
+      playerAvatar: null,
+      giftTitle: null,
+      giftImage: null,
+      roomState: null,
+      isStealMode: false,
+      videoStream: null
     };
 
-    // Get game code from URL or generate new one
-    const getGameCode = () => {
-      const params = new URLSearchParams(window.location.search);
-      return params.get('game') || generateGameCode();
+    // DOM Elements
+    const screens = {
+      welcome: document.getElementById('welcomeScreen'),
+      avatar: document.getElementById('avatarScreen'),
+      gift: document.getElementById('giftScreen'),
+      lobby: document.getElementById('lobbyScreen'),
+      game: document.getElementById('gameScreen'),
+      reveal: document.getElementById('revealScreen'),
+      finished: document.getElementById('finishedScreen')
     };
 
-    // Image compression
-    const compressImage = (file, maxSize = 400) => {
-      return new Promise((resolve) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            const canvas = document.createElement('canvas');
-            let { width, height } = img;
-            
-            if (width > height) {
-              if (width > maxSize) {
-                height = (height * maxSize) / width;
-                width = maxSize;
-              }
-            } else {
-              if (height > maxSize) {
-                width = (width * maxSize) / height;
-                height = maxSize;
-              }
-            }
-            
-            canvas.width = width;
-            canvas.height = height;
-            const ctx = canvas.getContext('2d');
-            ctx.drawImage(img, 0, 0, width, height);
-            resolve(canvas.toDataURL('image/jpeg', 0.8));
-          };
-          img.src = e.target.result;
+    // Initialize Socket.io
+    function initSocket() {
+      state.socket = io();
+
+      state.socket.on('connect', () => {
+        console.log('Connected to server');
+        checkUrlForRoom();
+      });
+
+      state.socket.on('roomUpdate', (roomState) => {
+        state.roomState = roomState;
+        updateUI();
+      });
+
+      state.socket.on('gameStarted', () => {
+        showScreen('game');
+        showToast('🎮 Game started!');
+      });
+
+      state.socket.on('giftTaken', ({ playerName, fromPool }) => {
+        if (fromPool) {
+          showToast(`${playerName} took a gift from the pool!`);
+        }
+      });
+
+      state.socket.on('giftStolen', ({ thiefName, victimName }) => {
+        showToast(`😈 ${thiefName} stole from ${victimName}!`);
+      });
+
+      state.socket.on('revealPhase', () => {
+        showScreen('reveal');
+        showToast('🎉 Time to reveal the gifts!');
+      });
+
+      state.socket.on('giftRevealed', (revealData) => {
+        showRevealedGift(revealData);
+        triggerConfetti();
+      });
+
+      state.socket.on('gameFinished', () => {
+        showScreen('finished');
+        triggerConfetti();
+        showToast('🎊 Game complete! Happy gifting!');
+      });
+    }
+
+    // Screen Navigation
+    function showScreen(screenName) {
+      Object.values(screens).forEach(s => s.classList.remove('active'));
+      screens[screenName].classList.add('active');
+      stopVideoStream();
+    }
+
+    // Toast Notifications
+    function showToast(message, duration = 3000) {
+      const container = document.getElementById('toastContainer');
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      toast.textContent = message;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), duration);
+    }
+
+    // Image Capture Helpers
+    async function startCamera(videoElement) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ 
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 640 } } 
+        });
+        state.videoStream = stream;
+        videoElement.srcObject = stream;
+        videoElement.style.display = 'block';
+        return true;
+      } catch (err) {
+        console.error('Camera error:', err);
+        showToast('Could not access camera. Please upload an image.');
+        return false;
+      }
+    }
+
+    function stopVideoStream() {
+      if (state.videoStream) {
+        state.videoStream.getTracks().forEach(track => track.stop());
+        state.videoStream = null;
+      }
+    }
+
+    function captureFromVideo(videoElement) {
+      const canvas = document.createElement('canvas');
+      canvas.width = 400;
+      canvas.height = 400;
+      const ctx = canvas.getContext('2d');
+      
+      // Calculate crop to square
+      const size = Math.min(videoElement.videoWidth, videoElement.videoHeight);
+      const x = (videoElement.videoWidth - size) / 2;
+      const y = (videoElement.videoHeight - size) / 2;
+      
+      ctx.drawImage(videoElement, x, y, size, size, 0, 0, 400, 400);
+      return canvas.toDataURL('image/jpeg', 0.8);
+    }
+
+    function handleFileUpload(file, callback) {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 400;
+          canvas.height = 400;
+          const ctx = canvas.getContext('2d');
+          
+          // Crop to square
+          const size = Math.min(img.width, img.height);
+          const x = (img.width - size) / 2;
+          const y = (img.height - size) / 2;
+          
+          ctx.drawImage(img, x, y, size, size, 0, 0, 400, 400);
+          callback(canvas.toDataURL('image/jpeg', 0.8));
         };
-        reader.readAsDataURL(file);
+        img.src = e.target.result;
+      };
+      reader.readAsDataURL(file);
+    }
+
+    // Welcome Screen
+    document.getElementById('joinRoomBtn').addEventListener('click', () => {
+      const code = document.getElementById('roomCodeInput').value.trim().toUpperCase();
+      if (code.length !== 6) {
+        showToast('Please enter a 6-letter room code');
+        return;
+      }
+      state.roomCode = code;
+      showScreen('avatar');
+    });
+
+    document.getElementById('createRoomBtn').addEventListener('click', () => {
+      state.socket.emit('createRoom', (response) => {
+        if (response.success) {
+          state.roomCode = response.roomCode;
+          showScreen('avatar');
+          showToast(`Room created: ${response.roomCode}`);
+        }
+      });
+    });
+
+    // Avatar Screen
+    const avatarVideo = document.getElementById('avatarVideo');
+    const avatarPreview = document.getElementById('avatarPreview');
+    const avatarPlaceholder = document.getElementById('avatarPlaceholder');
+    const avatarCapture = document.getElementById('avatarCapture');
+
+    document.getElementById('avatarCameraBtn').addEventListener('click', async () => {
+      avatarPreview.style.display = 'none';
+      avatarPlaceholder.style.display = 'none';
+      const success = await startCamera(avatarVideo);
+      if (success) {
+        document.getElementById('avatarCaptureBtn').style.display = 'block';
+      }
+    });
+
+    document.getElementById('avatarCaptureBtn').addEventListener('click', () => {
+      state.playerAvatar = captureFromVideo(avatarVideo);
+      avatarPreview.src = state.playerAvatar;
+      avatarPreview.style.display = 'block';
+      avatarVideo.style.display = 'none';
+      avatarCapture.classList.add('has-image');
+      document.getElementById('avatarCaptureBtn').style.display = 'none';
+      stopVideoStream();
+      validateAvatarForm();
+    });
+
+    document.getElementById('avatarUploadBtn').addEventListener('click', () => {
+      document.getElementById('avatarFileInput').click();
+    });
+
+    document.getElementById('avatarFileInput').addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        handleFileUpload(e.target.files[0], (dataUrl) => {
+          state.playerAvatar = dataUrl;
+          avatarPreview.src = dataUrl;
+          avatarPreview.style.display = 'block';
+          avatarVideo.style.display = 'none';
+          avatarPlaceholder.style.display = 'none';
+          avatarCapture.classList.add('has-image');
+          stopVideoStream();
+          document.getElementById('avatarCaptureBtn').style.display = 'none';
+          validateAvatarForm();
+        });
+      }
+    });
+
+    document.getElementById('playerNameInput').addEventListener('input', validateAvatarForm);
+
+    function validateAvatarForm() {
+      const name = document.getElementById('playerNameInput').value.trim();
+      const hasAvatar = state.playerAvatar !== null;
+      document.getElementById('saveAvatarBtn').disabled = !name || !hasAvatar;
+    }
+
+    document.getElementById('saveAvatarBtn').addEventListener('click', () => {
+      state.playerName = document.getElementById('playerNameInput').value.trim();
+      showScreen('gift');
+    });
+
+    // Gift Screen
+    const giftVideo = document.getElementById('giftVideo');
+    const giftPreview = document.getElementById('giftPreview');
+    const giftPlaceholder = document.getElementById('giftPlaceholder');
+    const giftCapture = document.getElementById('giftCapture');
+
+    document.getElementById('giftCameraBtn').addEventListener('click', async () => {
+      giftPreview.style.display = 'none';
+      giftPlaceholder.style.display = 'none';
+      const success = await startCamera(giftVideo);
+      if (success) {
+        document.getElementById('giftCaptureBtn').style.display = 'block';
+      }
+    });
+
+    document.getElementById('giftCaptureBtn').addEventListener('click', () => {
+      state.giftImage = captureFromVideo(giftVideo);
+      giftPreview.src = state.giftImage;
+      giftPreview.style.display = 'block';
+      giftVideo.style.display = 'none';
+      giftCapture.classList.add('has-image');
+      document.getElementById('giftCaptureBtn').style.display = 'none';
+      stopVideoStream();
+      validateGiftForm();
+    });
+
+    document.getElementById('giftUploadBtn').addEventListener('click', () => {
+      document.getElementById('giftFileInput').click();
+    });
+
+    document.getElementById('giftFileInput').addEventListener('change', (e) => {
+      if (e.target.files[0]) {
+        handleFileUpload(e.target.files[0], (dataUrl) => {
+          state.giftImage = dataUrl;
+          giftPreview.src = dataUrl;
+          giftPreview.style.display = 'block';
+          giftVideo.style.display = 'none';
+          giftPlaceholder.style.display = 'none';
+          giftCapture.classList.add('has-image');
+          stopVideoStream();
+          document.getElementById('giftCaptureBtn').style.display = 'none';
+          validateGiftForm();
+        });
+      }
+    });
+
+    document.getElementById('giftTitleInput').addEventListener('input', validateGiftForm);
+
+    function validateGiftForm() {
+      const title = document.getElementById('giftTitleInput').value.trim();
+      const hasImage = state.giftImage !== null;
+      document.getElementById('saveGiftBtn').disabled = !title || !hasImage;
+    }
+
+    document.getElementById('saveGiftBtn').addEventListener('click', () => {
+      state.giftTitle = document.getElementById('giftTitleInput').value.trim();
+      joinRoom();
+    });
+
+    // Join Room
+    function joinRoom() {
+      state.socket.emit('joinRoom', {
+        roomCode: state.roomCode,
+        playerName: state.playerName,
+        avatar: state.playerAvatar
+      }, (response) => {
+        if (response.success) {
+          state.playerId = response.playerId;
+          state.roomState = response.roomState;
+          
+          // Submit gift
+          state.socket.emit('submitGift', {
+            title: state.giftTitle,
+            image: state.giftImage
+          }, (giftResponse) => {
+            if (giftResponse.success) {
+              showScreen('lobby');
+              updateUI();
+            } else {
+              showToast(giftResponse.error);
+            }
+          });
+        } else {
+          showToast(response.error);
+        }
+      });
+    }
+
+    // Lobby Screen
+    document.getElementById('copyLinkBtn').addEventListener('click', () => {
+      const link = `${window.location.origin}?room=${state.roomCode}`;
+      navigator.clipboard.writeText(link).then(() => {
+        showToast('✅ Link copied to clipboard!');
+      }).catch(() => {
+        // Fallback for browsers without clipboard API
+        showToast(`Share this link: ${link}`);
+      });
+    });
+
+    document.getElementById('startGameBtn').addEventListener('click', () => {
+      const btn = document.getElementById('startGameBtn');
+      btn.disabled = true;
+      btn.textContent = '⏳ Starting...';
+      showToast('Starting game...');
+      
+      state.socket.emit('startGame', (response) => {
+        if (!response.success) {
+          showToast('❌ ' + response.error);
+          btn.disabled = false;
+          btn.textContent = '🎮 Start Game';
+        }
+        // On success, the gameStarted event will handle the transition
+      });
+    });
+
+    // Game Screen
+    document.getElementById('takeFromPoolBtn').addEventListener('click', () => {
+      const pool = state.roomState.giftsInPool;
+      if (pool.length > 0) {
+        // Take the first available gift
+        state.socket.emit('takeFromPool', { giftId: pool[0].id }, (response) => {
+          if (!response.success) {
+            showToast(response.error);
+          }
+        });
+      }
+    });
+
+    document.getElementById('stealGiftBtn').addEventListener('click', () => {
+      state.isStealMode = true;
+      updateUI();
+    });
+
+    document.getElementById('cancelStealBtn').addEventListener('click', () => {
+      state.isStealMode = false;
+      updateUI();
+    });
+
+    // Reveal Screen
+    document.getElementById('revealNextBtn').addEventListener('click', () => {
+      state.socket.emit('revealNext', (response) => {
+        if (!response.success) {
+          showToast(response.error);
+        }
+      });
+    });
+
+    function showRevealedGift(data) {
+      document.getElementById('revealWaiting').style.display = 'none';
+      const card = document.getElementById('revealGiftCard');
+      card.style.display = 'block';
+      card.style.animation = 'none';
+      card.offsetHeight; // Trigger reflow
+      card.style.animation = 'unwrap 0.8s ease-out';
+
+      document.getElementById('revealGiftImage').src = data.image;
+      document.getElementById('revealGiftTitle').textContent = data.title;
+      document.getElementById('revealCreatorAvatar').src = data.creatorAvatar;
+      document.getElementById('revealCreatorName').textContent = data.creatorName;
+      document.getElementById('revealOwnerAvatar').src = data.ownerAvatar;
+      document.getElementById('revealOwnerName').textContent = data.ownerName;
+    }
+
+    // Finished Screen
+    document.getElementById('playAgainBtn').addEventListener('click', () => {
+      location.reload();
+    });
+
+    // Update UI
+    function updateUI() {
+      if (!state.roomState) return;
+
+      const rs = state.roomState;
+
+      // Update lobby room code
+      document.getElementById('lobbyRoomCode').textContent = rs.code;
+
+      // Update lobby players
+      const lobbyPlayers = document.getElementById('lobbyPlayers');
+      lobbyPlayers.innerHTML = rs.players.map(p => `
+        <div class="player-card ${p.hasGift ? 'has-gift' : ''}">
+          <img src="${p.avatar}" alt="${p.name}" class="player-avatar">
+          <div class="player-name">${p.name}</div>
+          <div class="player-status ${p.hasGift ? 'status-ready' : 'status-waiting'}">
+            ${p.hasGift ? '✓ Gift ready' : 'Adding gift...'}
+          </div>
+          ${p.isHost ? '<span class="host-badge">HOST</span>' : ''}
+        </div>
+      `).join('');
+
+      // Show/hide host controls
+      const isHost = rs.hostId === state.playerId;
+      document.getElementById('hostControls').style.display = isHost ? 'block' : 'none';
+      document.getElementById('waitingForHost').style.display = isHost ? 'none' : 'block';
+
+      // Enable start button if all players have gifts
+      const allReady = rs.players.every(p => p.hasGift);
+      document.getElementById('startGameBtn').disabled = !allReady || rs.players.length < 2;
+
+      // Update game screen
+      if (rs.phase === 'playing') {
+        const currentPlayer = rs.players.find(p => p.id === rs.currentPlayerId);
+        document.getElementById('currentTurnName').textContent = currentPlayer?.name || '---';
+        
+        const isMyTurn = rs.currentPlayerId === state.playerId;
+        const turnIndicator = document.getElementById('turnIndicator');
+        turnIndicator.classList.toggle('your-turn', isMyTurn);
+
+        // Show/hide action buttons
+        document.getElementById('yourTurnActions').style.display = isMyTurn && !state.isStealMode ? 'block' : 'none';
+        document.getElementById('stealModeBanner').style.display = state.isStealMode ? 'block' : 'none';
+
+        // Check if stealing is possible (anyone else has a gift)
+        const playersWithGifts = rs.players.filter(p => 
+          rs.playerGifts[p.id] && p.id !== state.playerId
+        );
+        const canSteal = playersWithGifts.length > 0;
+        
+        // Check steal-back rule
+        const canStealFromPlayer = (playerId) => {
+          const playerGift = Object.entries(rs.playerGifts).find(([ownerId]) => ownerId === playerId);
+          if (playerGift && playerGift[0] === rs.lastStolenFromPlayerId) {
+            // This player just had their gift stolen, check if it's the same gift
+            const giftId = Object.keys(rs.playerGifts).find(gId => rs.playerGifts[gId] === playerId);
+            return giftId !== rs.lastStolenGiftId;
+          }
+          return true;
+        };
+
+        document.getElementById('stealGiftBtn').style.display = canSteal ? 'inline-flex' : 'none';
+
+        // Disable take from pool if empty
+        document.getElementById('takeFromPoolBtn').disabled = rs.giftsInPool.length === 0;
+
+        // Update gift pool
+        const giftsGrid = document.getElementById('giftsGrid');
+        if (rs.giftsInPool.length === 0) {
+          giftsGrid.innerHTML = '<div class="empty-state"><div class="empty-icon">📭</div><div>Pool is empty!</div></div>';
+        } else {
+          giftsGrid.innerHTML = rs.giftsInPool.map(g => `
+            <div class="gift-box ${isMyTurn ? 'selectable' : ''}" data-gift-id="${g.id}">
+              <span class="bow">🎀</span>
+            </div>
+          `).join('');
+
+          // Add click handlers to gifts
+          if (isMyTurn) {
+            giftsGrid.querySelectorAll('.gift-box').forEach(box => {
+              box.addEventListener('click', () => {
+                const giftId = box.dataset.giftId;
+                state.socket.emit('takeFromPool', { giftId }, (response) => {
+                  if (!response.success) {
+                    showToast(response.error);
+                  }
+                });
+              });
+            });
+          }
+        }
+
+        // Update players with gifts
+        const gamePlayers = document.getElementById('gamePlayers');
+        gamePlayers.innerHTML = rs.players.map(p => {
+          const hasGift = rs.playerGifts[p.id];
+          const isCurrentTurn = p.id === rs.currentPlayerId;
+          const canStealThis = state.isStealMode && hasGift && p.id !== state.playerId && isMyTurn;
+          
+          // Check steal-back rule for this player
+          const giftEntry = Object.entries(rs.playerGifts).find(([gId, ownerId]) => ownerId === p.id);
+          const giftId = giftEntry ? giftEntry[0] : null;
+          const isStealBackBlocked = giftId === rs.lastStolenGiftId;
+
+          return `
+            <div class="player-card ${isCurrentTurn ? 'current-turn' : ''} ${hasGift ? 'has-gift' : ''} ${canStealThis && !isStealBackBlocked ? 'can-steal' : ''}" 
+                 data-player-id="${p.id}" 
+                 ${canStealThis && !isStealBackBlocked ? 'onclick="stealFromPlayer(\'' + p.id + '\')"' : ''}>
+              <img src="${p.avatar}" alt="${p.name}" class="player-avatar">
+              <div class="player-name">${p.name}${p.id === state.playerId ? ' (You)' : ''}</div>
+              <div class="player-status">
+                ${hasGift ? '🎁 Has gift' : 'No gift yet'}
+                ${isStealBackBlocked && state.isStealMode ? '<br><small style="color: var(--burgundy);">Protected</small>' : ''}
+              </div>
+            </div>
+          `;
+        }).join('');
+      }
+
+      // Update results screen
+      if (rs.phase === 'finished') {
+        const resultsList = document.getElementById('resultsList');
+        resultsList.innerHTML = rs.revealedGifts.map(g => `
+          <div class="result-item">
+            <img src="${g.image}" alt="${g.title}" class="result-gift-img">
+            <div class="result-info">
+              <div class="result-title">${g.title}</div>
+              <div class="result-people">
+                From <strong>${g.creatorName}</strong> → To <strong>${g.ownerName}</strong>
+              </div>
+            </div>
+          </div>
+        `).join('');
+      }
+    }
+
+    // Global steal function
+    window.stealFromPlayer = function(fromPlayerId) {
+      if (!state.isStealMode) return;
+      
+      state.socket.emit('stealGift', { fromPlayerId }, (response) => {
+        if (!response.success) {
+          showToast(response.error);
+        }
+        state.isStealMode = false;
+        updateUI();
       });
     };
 
-    // Toast notification component
-    function Toast({ message, onClose }) {
-      useEffect(() => {
-        const timer = setTimeout(onClose, 3000);
-        return () => clearTimeout(timer);
-      }, [onClose]);
+    // Confetti
+    function triggerConfetti() {
+      const canvas = document.getElementById('confetti');
+      const ctx = canvas.getContext('2d');
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
 
-      return <div className="toast">{message}</div>;
-    }
+      const particles = [];
+      const colors = ['#d4af37', '#1a472a', '#722f37', '#faf8f3', '#e8c85a'];
 
-    // Confetti component
-    function Confetti() {
-      const colors = ['#e8a87c', '#c94c4c', '#6b9080', '#d4a574', '#f5f0eb'];
-      const pieces = Array.from({ length: 50 }, (_, i) => ({
-        id: i,
-        left: Math.random() * 100,
-        delay: Math.random() * 2,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        size: 8 + Math.random() * 8
-      }));
-
-      return (
-        <div className="confetti">
-          {pieces.map(piece => (
-            <div
-              key={piece.id}
-              className="confetti-piece"
-              style={{
-                left: `${piece.left}%`,
-                animationDelay: `${piece.delay}s`,
-                backgroundColor: piece.color,
-                width: piece.size,
-                height: piece.size,
-                borderRadius: Math.random() > 0.5 ? '50%' : '0'
-              }}
-            />
-          ))}
-        </div>
-      );
-    }
-
-    // Image upload component
-    function ImageUpload({ value, onChange, placeholder, isAvatar }) {
-      const fileInputRef = useRef(null);
-      const videoRef = useRef(null);
-      const [showCamera, setShowCamera] = useState(false);
-      const [stream, setStream] = useState(null);
-
-      const handleFileChange = async (e) => {
-        const file = e.target.files[0];
-        if (file) {
-          const compressed = await compressImage(file, isAvatar ? 200 : 400);
-          onChange(compressed);
-        }
-      };
-
-      const startCamera = async () => {
-        try {
-          const mediaStream = await navigator.mediaDevices.getUserMedia({ 
-            video: { facingMode: isAvatar ? 'user' : 'environment' } 
-          });
-          setStream(mediaStream);
-          setShowCamera(true);
-        } catch (err) {
-          console.error('Camera access denied:', err);
-          alert('Could not access camera. Please upload an image instead.');
-        }
-      };
-
-      const capturePhoto = () => {
-        if (videoRef.current) {
-          const canvas = document.createElement('canvas');
-          const size = isAvatar ? 200 : 400;
-          canvas.width = size;
-          canvas.height = size;
-          const ctx = canvas.getContext('2d');
-          
-          const video = videoRef.current;
-          const vw = video.videoWidth;
-          const vh = video.videoHeight;
-          const min = Math.min(vw, vh);
-          const sx = (vw - min) / 2;
-          const sy = (vh - min) / 2;
-          
-          ctx.drawImage(video, sx, sy, min, min, 0, 0, size, size);
-          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-          onChange(dataUrl);
-          stopCamera();
-        }
-      };
-
-      const stopCamera = () => {
-        if (stream) {
-          stream.getTracks().forEach(track => track.stop());
-          setStream(null);
-        }
-        setShowCamera(false);
-      };
-
-      useEffect(() => {
-        if (showCamera && videoRef.current && stream) {
-          videoRef.current.srcObject = stream;
-        }
-      }, [showCamera, stream]);
-
-      useEffect(() => {
-        return () => {
-          if (stream) {
-            stream.getTracks().forEach(track => track.stop());
-          }
-        };
-      }, [stream]);
-
-      if (showCamera) {
-        return (
-          <div>
-            <div className="video-preview">
-              <video ref={videoRef} autoPlay playsInline muted />
-            </div>
-            <div className="camera-options">
-              <button className="btn btn-primary" onClick={capturePhoto}>📸 Capture</button>
-              <button className="btn btn-secondary" onClick={stopCamera}>Cancel</button>
-            </div>
-          </div>
-        );
+      for (let i = 0; i < 100; i++) {
+        particles.push({
+          x: canvas.width / 2,
+          y: canvas.height / 2,
+          vx: (Math.random() - 0.5) * 15,
+          vy: (Math.random() - 0.5) * 15 - 5,
+          color: colors[Math.floor(Math.random() * colors.length)],
+          size: Math.random() * 8 + 4,
+          rotation: Math.random() * 360,
+          rotationSpeed: (Math.random() - 0.5) * 10
+        });
       }
 
-      return (
-        <div>
-          <div 
-            className={`image-upload ${value ? 'has-image' : ''}`}
-            onClick={() => fileInputRef.current?.click()}
-            style={isAvatar ? { borderRadius: '50%' } : {}}
-          >
-            {value ? (
-              <img src={value} alt="Preview" />
-            ) : (
-              <div className="image-upload-placeholder">
-                <div className="image-upload-icon">{isAvatar ? '👤' : '🎁'}</div>
-                <div className="image-upload-text">{placeholder}</div>
-              </div>
-            )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              onChange={handleFileChange}
-            />
-          </div>
-          <div className="camera-options">
-            <button className="btn btn-secondary" onClick={startCamera}>📷 Camera</button>
-            <button className="btn btn-secondary" onClick={() => fileInputRef.current?.click()}>📁 Upload</button>
-          </div>
-        </div>
-      );
-    }
-
-    // Main App
-    function App() {
-      const [socket, setSocket] = useState(null);
-      const [gameCode] = useState(getGameCode);
-      const [phase, setPhase] = useState('setup'); // setup, gift, lobby, playing, revealing, finished
-      const [playerName, setPlayerName] = useState('');
-      const [avatar, setAvatar] = useState(null);
-      const [giftTitle, setGiftTitle] = useState('');
-      const [giftImage, setGiftImage] = useState(null);
-      const [gameState, setGameState] = useState(null);
-      const [toast, setToast] = useState(null);
-      const [revealedGift, setRevealedGift] = useState(null);
-      const [showConfetti, setShowConfetti] = useState(false);
-      const [isConnected, setIsConnected] = useState(false);
-
-      // Update URL with game code
-      useEffect(() => {
-        const url = new URL(window.location);
-        url.searchParams.set('game', gameCode);
-        window.history.replaceState({}, '', url);
-      }, [gameCode]);
-
-      // Socket connection
-      useEffect(() => {
-        const newSocket = io(window.location.origin);
+      let frame = 0;
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
         
-        newSocket.on('connect', () => {
-          setIsConnected(true);
-          setSocket(newSocket);
+        particles.forEach(p => {
+          p.x += p.vx;
+          p.y += p.vy;
+          p.vy += 0.3;
+          p.rotation += p.rotationSpeed;
+
+          ctx.save();
+          ctx.translate(p.x, p.y);
+          ctx.rotate(p.rotation * Math.PI / 180);
+          ctx.fillStyle = p.color;
+          ctx.fillRect(-p.size / 2, -p.size / 2, p.size, p.size);
+          ctx.restore();
         });
 
-        newSocket.on('disconnect', () => {
-          setIsConnected(false);
-        });
-
-        newSocket.on('gameState', (state) => {
-          setGameState(state);
-          if (state.phase === 'playing' && phase === 'lobby') {
-            setPhase('playing');
-          } else if (state.phase === 'revealing' && phase !== 'revealing' && phase !== 'finished') {
-            setPhase('revealing');
-          } else if (state.phase === 'finished') {
-            setPhase('finished');
-            setShowConfetti(true);
-          }
-        });
-
-        newSocket.on('action', ({ type, playerName, targetName, giftTitle }) => {
-          if (type === 'took') {
-            setToast(`${playerName} took a gift from the pool!`);
-          } else if (type === 'stole') {
-            setToast(`${playerName} stole from ${targetName}! 😈`);
-          }
-        });
-
-        newSocket.on('giftRevealed', ({ playerName, gift }) => {
-          setRevealedGift({ playerName, ...gift });
-        });
-
-        newSocket.on('error', ({ message }) => {
-          setToast(`⚠️ ${message}`);
-        });
-
-        return () => newSocket.close();
-      }, []);
-
-      const joinGame = () => {
-        if (!playerName.trim() || !avatar) {
-          setToast('Please enter your name and add a photo!');
-          return;
+        frame++;
+        if (frame < 120) {
+          requestAnimationFrame(animate);
+        } else {
+          ctx.clearRect(0, 0, canvas.width, canvas.height);
         }
-        socket.emit('joinGame', { gameId: gameCode, playerName: playerName.trim(), avatar });
-        setPhase('gift');
-      };
-
-      const submitGift = () => {
-        if (!giftTitle.trim() || !giftImage) {
-          setToast('Please add a gift title and photo!');
-          return;
-        }
-        socket.emit('submitGift', { title: giftTitle.trim(), image: giftImage });
-        setPhase('lobby');
-      };
-
-      const startGame = () => {
-        socket.emit('startGame');
-      };
-
-      const takeFromPool = () => {
-        socket.emit('takeFromPool');
-      };
-
-      const stealGift = (targetPlayerId) => {
-        socket.emit('stealGift', { targetPlayerId });
-      };
-
-      const revealNext = () => {
-        setRevealedGift(null);
-        socket.emit('revealNext');
-      };
-
-      const isMyTurn = gameState?.currentPlayerId === socket?.id;
-      const myPlayer = gameState?.players.find(p => p.id === socket?.id);
-      const canStealFrom = (player) => {
-        if (!isMyTurn || !player.currentGift || player.id === socket?.id) return false;
-        if (gameState?.lastStolenFrom === player.id) return false;
-        return true;
-      };
-
-      const shareLink = `${window.location.origin}?game=${gameCode}`;
-
-      return (
-        <div className="app">
-          <div className="bg-pattern" />
-          
-          <header className="header">
-            <h1 className="logo">
-              White Elephant <span className="logo-emoji">🎁</span>
-            </h1>
-            <p className="subtitle">Virtual Gift Exchange</p>
-          </header>
-
-          <main className="main">
-            {/* Setup Phase */}
-            {phase === 'setup' && (
-              <div className="card">
-                <h2 className="card-title">Join the Party</h2>
-                
-                <div className="game-code">
-                  <div className="game-code-label">Game Code</div>
-                  <div className="game-code-value">{gameCode}</div>
-                </div>
-
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1rem', textAlign: 'center' }}>
-                  Share this link with friends:
-                </p>
-                <div className="input-group">
-                  <input 
-                    className="input" 
-                    value={shareLink} 
-                    readOnly 
-                    onClick={(e) => {
-                      e.target.select();
-                      navigator.clipboard?.writeText(shareLink);
-                      setToast('Link copied!');
-                    }}
-                    style={{ cursor: 'pointer', fontSize: '0.8rem' }}
-                  />
-                </div>
-
-                <div className="divider">Your Profile</div>
-
-                <ImageUpload 
-                  value={avatar} 
-                  onChange={setAvatar} 
-                  placeholder="Add photo"
-                  isAvatar
-                />
-
-                <div className="input-group" style={{ marginTop: '1rem' }}>
-                  <label className="label">Your Name</label>
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="Enter your name"
-                    value={playerName}
-                    onChange={(e) => setPlayerName(e.target.value)}
-                    maxLength={20}
-                  />
-                </div>
-
-                <button 
-                  className="btn btn-primary" 
-                  onClick={joinGame}
-                  disabled={!isConnected}
-                >
-                  {isConnected ? 'Join Game' : 'Connecting...'}
-                </button>
-              </div>
-            )}
-
-            {/* Gift Upload Phase */}
-            {phase === 'gift' && (
-              <div className="card">
-                <h2 className="card-title">Add Your Gift</h2>
-                <p style={{ fontSize: '0.875rem', color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                  Take a photo of your wrapped gift. Don't worry, no one else can see it yet! 🤫
-                </p>
-
-                <ImageUpload 
-                  value={giftImage} 
-                  onChange={setGiftImage} 
-                  placeholder="Add gift photo"
-                />
-
-                <div className="input-group" style={{ marginTop: '1rem' }}>
-                  <label className="label">What is it?</label>
-                  <input
-                    className="input"
-                    type="text"
-                    placeholder="e.g., Cozy blanket"
-                    value={giftTitle}
-                    onChange={(e) => setGiftTitle(e.target.value)}
-                    maxLength={30}
-                  />
-                </div>
-
-                <button className="btn btn-primary" onClick={submitGift}>
-                  Submit Gift
-                </button>
-              </div>
-            )}
-
-            {/* Lobby Phase */}
-            {phase === 'lobby' && gameState && (
-              <>
-                <div className="card">
-                  <div className="game-code">
-                    <div className="game-code-label">Game Code</div>
-                    <div className="game-code-value">{gameCode}</div>
-                  </div>
-                  
-                  <h2 className="card-title">Waiting for Players</h2>
-                  
-                  <div className="players-grid">
-                    {gameState.players.map(player => (
-                      <div key={player.id} className={`player-card ${player.isReady ? 'has-gift' : ''}`}>
-                        <img src={player.avatar} alt={player.name} className="avatar" />
-                        <div className="player-name">{player.name}</div>
-                        <div className={`player-status ${player.isReady ? 'ready' : ''}`}>
-                          {player.isReady ? '✓ Ready' : 'Adding gift...'}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-
-                  {gameState.players.length >= 2 && gameState.players.every(p => p.isReady) && (
-                    <button className="btn btn-primary" onClick={startGame} style={{ marginTop: '1.5rem' }}>
-                      Start Game! 🎉
-                    </button>
-                  )}
-                  
-                  {gameState.players.length < 2 && (
-                    <p style={{ textAlign: 'center', color: 'var(--text-muted)', marginTop: '1rem', fontSize: '0.875rem' }}>
-                      Need at least 2 players to start
-                    </p>
-                  )}
-                </div>
-              </>
-            )}
-
-            {/* Playing Phase */}
-            {phase === 'playing' && gameState && (
-              <>
-                <div className={`turn-indicator ${isMyTurn ? 'your-turn' : ''}`}>
-                  {isMyTurn ? "🎯 It's your turn!" : `${gameState.players.find(p => p.id === gameState.currentPlayerId)?.name}'s turn`}
-                </div>
-
-                {gameState.giftPoolCount > 0 && (
-                  <div className="card">
-                    <h3 className="card-title">Gift Pool ({gameState.giftPoolCount})</h3>
-                    <div className="gift-pool">
-                      {Array.from({ length: gameState.giftPoolCount }, (_, i) => (
-                        <div key={i} className="gift-box">🎁</div>
-                      ))}
-                    </div>
-                    {isMyTurn && !myPlayer?.currentGift && (
-                      <button className="btn btn-pool" onClick={takeFromPool} style={{ marginTop: '1rem' }}>
-                        Take from Pool
-                      </button>
-                    )}
-                  </div>
-                )}
-
-                <div className="card">
-                  <h3 className="card-title">Players</h3>
-                  <div className="players-grid">
-                    {gameState.players.map(player => {
-                      const isStealable = canStealFrom(player);
-                      const isLocked = player.currentGift && gameState.stealCounts?.[player.currentGift.id] >= 3;
-                      
-                      return (
-                        <div 
-                          key={player.id} 
-                          className={`player-card ${player.currentGift ? 'has-gift' : ''} ${isStealable ? 'stealable' : ''} ${player.id === gameState.currentPlayerId ? 'current-turn' : ''} ${isLocked ? 'locked' : ''}`}
-                          onClick={() => isStealable && stealGift(player.id)}
-                        >
-                          {player.currentGift && <div className="gift-indicator">🎁</div>}
-                          <img src={player.avatar} alt={player.name} className="avatar avatar-small" />
-                          <div className="player-name">
-                            {player.name}
-                            {player.id === socket?.id && ' (you)'}
-                          </div>
-                          {player.currentGift && (
-                            <div className="player-status">
-                              {isLocked ? '🔒 Locked' : 'Has gift'}
-                            </div>
-                          )}
-                          {isStealable && <div className="player-status" style={{ color: 'var(--accent-red)' }}>Tap to steal!</div>}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              </>
-            )}
-
-            {/* Revealing Phase */}
-            {(phase === 'revealing' || phase === 'finished') && gameState && (
-              <>
-                {showConfetti && <Confetti />}
-                
-                {revealedGift ? (
-                  <div className="card reveal-card">
-                    <h2 className="card-title">🎉 Gift Revealed!</h2>
-                    <img src={revealedGift.image} alt={revealedGift.title} className="reveal-gift-image" />
-                    <div className="reveal-title">{revealedGift.title}</div>
-                    <div className="reveal-recipient">Goes to {revealedGift.playerName}</div>
-                    
-                    {phase === 'revealing' && (
-                      <button className="btn btn-primary" onClick={revealNext} style={{ marginTop: '1.5rem' }}>
-                        Next Reveal →
-                      </button>
-                    )}
-                  </div>
-                ) : phase === 'revealing' ? (
-                  <div className="card" style={{ textAlign: 'center' }}>
-                    <h2 className="card-title">🎁 Time to Reveal!</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1.5rem' }}>
-                      Let's see what everyone got!
-                    </p>
-                    <button className="btn btn-primary" onClick={revealNext}>
-                      Start Revealing
-                    </button>
-                  </div>
-                ) : null}
-
-                {phase === 'finished' && (
-                  <div className="card">
-                    <h2 className="card-title">🎊 Game Complete!</h2>
-                    <p style={{ color: 'var(--text-secondary)', marginBottom: '1rem', textAlign: 'center' }}>
-                      Don't forget to mail your gifts to the winners!
-                    </p>
-                    <div className="players-grid">
-                      {gameState.players.map(player => (
-                        <div key={player.id} className="player-card has-gift">
-                          <img src={player.avatar} alt={player.name} className="avatar avatar-small" />
-                          <div className="player-name">{player.name}</div>
-                          {player.currentGift && (
-                            <div className="player-status" style={{ color: 'var(--accent-warm)' }}>
-                              {player.currentGift.title}
-                            </div>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </>
-            )}
-          </main>
-
-          {toast && <Toast message={toast} onClose={() => setToast(null)} />}
-        </div>
-      );
+      }
+      animate();
     }
 
-    ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+    // Initialize
+    initSocket();
+
+    // Check for room code in URL (supports ?room=CODE or /CODE)
+    function checkUrlForRoom() {
+      const urlParams = new URLSearchParams(window.location.search);
+      let roomCode = urlParams.get('room');
+      
+      // Also check pathname for /CODE format
+      if (!roomCode) {
+        const path = window.location.pathname.slice(1); // Remove leading /
+        if (path && /^[A-Za-z0-9]{6}$/.test(path)) {
+          roomCode = path;
+        }
+      }
+      
+      if (roomCode) {
+        roomCode = roomCode.toUpperCase();
+        document.getElementById('roomCodeInput').value = roomCode;
+        state.roomCode = roomCode;
+        showToast(`Joining room ${roomCode}...`);
+        showScreen('avatar');
+      }
+    }
+
+    // Force uppercase on room code input
+    document.getElementById('roomCodeInput').addEventListener('input', (e) => {
+      e.target.value = e.target.value.toUpperCase();
+    });
   </script>
 </body>
 </html>

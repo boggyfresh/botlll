@@ -1,41 +1,49 @@
-# 🎁 White Elephant - Virtual Gift Exchange
+# 🎁 White Elephant Gift Exchange
 
-A real-time, mobile-first web app for playing White Elephant gift exchange with friends while on a video call.
+A real-time virtual White Elephant gift exchange game for playing with friends over video call.
 
 ## Features
 
-- **No authentication required** - Just enter your name and join
-- **Avatar photos** - Take a selfie or upload a headshot
-- **Secret gifts** - Upload gift photos that stay hidden until the reveal
-- **Real-time gameplay** - Socket.io powered for instant updates
-- **Standard rules** - Take from pool or steal, no steal-backs, 3-steal lock
-- **Dramatic reveals** - Gifts revealed one-by-one at the end
-- **Mobile-first** - Beautiful on phones, tablets, and desktops
+- **No authentication required** - Just enter your name and take a photo
+- **Real-time multiplayer** - Play with any number of friends
+- **Camera capture or upload** - Take photos or upload images for avatars and gifts
+- **Gift secrecy** - Gifts remain hidden until the reveal phase
+- **Standard White Elephant rules** - Take from the pool or steal from others (no steal-backs!)
+- **One-by-one reveal** - Build suspense with dramatic gift reveals
+- **Mobile-first design** - Works great on phones, tablets, and desktops
 
 ## How to Play
 
-1. **Create/Join a Game**
-   - First player gets a game code automatically
-   - Share the link with friends
-   - Everyone adds their name and takes a selfie
+1. **Create or Join a Room**
+   - One person creates a room and shares the 6-letter code
+   - Others join using the code
 
-2. **Add Your Gift**
-   - Take a photo of your wrapped gift
-   - Add a title (only you can see this until reveal)
-   - Wait for everyone to submit
+2. **Set Up Your Avatar**
+   - Enter your name
+   - Take or upload a photo of yourself
 
-3. **Play!**
-   - Players take turns in random order
-   - On your turn: take from the pool OR steal from another player
-   - Can't steal back from someone who just stole from you
-   - Gifts lock after being stolen 3 times
+3. **Add Your Gift**
+   - Take or upload a photo of your wrapped gift
+   - Give it a title (only you can see this until reveal)
 
-4. **Reveal**
-   - Once everyone has a gift, reveals begin
-   - Gifts are shown one-by-one dramatically
-   - Send your gift to the winner!
+4. **Wait in the Lobby**
+   - See who's joined and who has their gift ready
+   - Host starts the game when everyone's ready
 
-## Quick Start
+5. **Play the Game**
+   - On your turn, either:
+     - Take a wrapped gift from the pool, OR
+     - Steal an already-claimed gift from another player
+   - No steal-backs (can't immediately steal back a gift that was just stolen from you)
+
+6. **Reveal Phase**
+   - Watch gifts be revealed one by one
+   - See who gave what to whom
+
+7. **Mail Your Gifts!**
+   - After the game, mail your gift to the person who ended up with it
+
+## Setup
 
 ```bash
 # Install dependencies
@@ -43,53 +51,28 @@ npm install
 
 # Start the server
 npm start
+
+# Open in browser
+open http://localhost:3000
 ```
-
-The app will be available at `http://localhost:3000`
-
-## Deployment
-
-### Deploy to Render, Railway, or Fly.io
-
-1. Push to GitHub
-2. Connect your repo to your hosting platform
-3. Set the start command to `npm start`
-4. Deploy!
-
-### Environment Variables
-
-- `PORT` - Server port (default: 3000)
 
 ## Tech Stack
 
 - **Backend**: Node.js, Express, Socket.io
-- **Frontend**: React (CDN), Vanilla CSS
+- **Frontend**: Vanilla HTML/CSS/JS
 - **Real-time**: WebSockets via Socket.io
 
-## Game Rules (Standard White Elephant)
+## Tips for Playing
 
-1. Everyone brings one wrapped gift
-2. Players draw numbers to determine turn order
-3. First player takes a gift from the pool and opens it
-4. On your turn, either:
-   - Take an unwrapped gift from the pool, OR
-   - Steal an opened gift from another player
-5. If your gift is stolen, you get another turn (take or steal)
-6. **No steal-backs**: Can't immediately steal from someone who stole from you
-7. **3-steal lock**: After a gift is stolen 3 times, it's locked to that person
-8. Game ends when all gifts are distributed
+- Have everyone on a Zoom/video call while playing
+- The person who ends up with your gift will need your mailing address
+- Consider setting a price range for gifts beforehand
+- The host should wait until everyone has submitted their gift before starting
 
-## File Structure
+## Room Codes
 
-```
-white-elephant/
-├── server.js          # Express + Socket.io server
-├── package.json       # Dependencies
-├── README.md          # This file
-└── public/
-    └── index.html     # React frontend (single file)
-```
+Room codes are 6 characters using letters and numbers (excluding confusable characters like 0/O and 1/I/L).
 
-## License
+---
 
-MIT - Use freely for your holiday parties! 🎄
+Made with ❤️ for virtual holiday parties

@@ -1,349 +1,461 @@
 const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
-const cors = require('cors');
+const { v4: uuidv4 } = require('uuid');
 const path = require('path');
 
 const app = express();
-app.use(cors());
-app.use(express.json({ limit: '10mb' }));
-app.use(express.static(path.join(__dirname, 'public')));
-
 const server = http.createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: "*",
-    methods: ["GET", "POST"]
-  },
-  maxHttpBufferSize: 10e6
+  maxHttpBufferSize: 10e6 // 10MB for image uploads
 });
 
-// Game state
-const games = new Map();
+app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.json({ limit: '10mb' }));
 
-function createGame(gameId) {
-  return {
-    id: gameId,
+// Game rooms storage
+const rooms = new Map();
+
+// Game phases
+const PHASES = {
+  LOBBY: 'lobby',
+  PLAYING: 'playing',
+  REVEAL: 'reveal',
+  FINISHED: 'finished'
+};
+
+// Create a new room
+function createRoom() {
+  const roomCode = generateRoomCode();
+  rooms.set(roomCode, {
+    code: roomCode,
     players: new Map(),
     gifts: new Map(),
-    giftPool: [],
-    currentTurnIndex: 0,
+    phase: PHASES.LOBBY,
     turnOrder: [],
-    phase: 'lobby', // lobby, playing, revealing, finished
+    currentTurnIndex: 0,
+    currentPlayerId: null,
+    giftOwnership: new Map(), // giftId -> playerId
+    lastStolenGiftId: null,
+    lastStolenFromPlayerId: null,
+    revealedGifts: [],
     revealIndex: 0,
-    lastStolenFrom: null,
-    stealCounts: new Map() // Track how many times each gift has been stolen
-  };
+    hostId: null
+  });
+  return rooms.get(roomCode);
 }
 
-function getGameState(game) {
-  const players = Array.from(game.players.values()).map(p => ({
+// Generate a 6-character room code
+function generateRoomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  // Ensure unique
+  if (rooms.has(code)) {
+    return generateRoomCode();
+  }
+  return code;
+}
+
+// Get room state for broadcasting
+function getRoomState(room) {
+  // Build a set of player IDs who have submitted gifts
+  const playerIdsWithGifts = new Set();
+  room.gifts.forEach(gift => playerIdsWithGifts.add(gift.creatorId));
+
+  const players = Array.from(room.players.values()).map(p => ({
     id: p.id,
     name: p.name,
     avatar: p.avatar,
-    hasGift: p.hasGift,
-    currentGift: p.currentGift ? {
-      id: p.currentGift.id,
-      title: game.phase === 'revealing' || game.phase === 'finished' ? p.currentGift.title : '???',
-      image: game.phase === 'revealing' || game.phase === 'finished' ? p.currentGift.image : null,
-      revealed: p.currentGift.revealed || false
-    } : null,
-    isReady: p.isReady
+    hasGift: playerIdsWithGifts.has(p.id),
+    isHost: p.id === room.hostId,
+    isConnected: p.isConnected
   }));
 
+  // Get gifts in pool (unclaimed)
+  const giftsInPool = [];
+  const playerGifts = new Map(); // playerId -> gift info
+
+  room.gifts.forEach((gift, giftId) => {
+    const ownerId = room.giftOwnership.get(giftId);
+    if (!ownerId) {
+      giftsInPool.push({
+        id: giftId,
+        wrapped: true // Always show as wrapped until claimed or revealed
+      });
+    } else {
+      // Gift is owned by someone
+      const giftInfo = {
+        id: giftId,
+        wrapped: room.phase !== PHASES.REVEAL && room.phase !== PHASES.FINISHED,
+        title: (room.phase === PHASES.REVEAL || room.phase === PHASES.FINISHED) ? gift.title : null,
+        image: (room.phase === PHASES.REVEAL || room.phase === PHASES.FINISHED) ? gift.image : null,
+        creatorId: gift.creatorId,
+        creatorName: room.players.get(gift.creatorId)?.name || 'Unknown'
+      };
+      playerGifts.set(ownerId, giftInfo);
+    }
+  });
+
   return {
-    id: game.id,
+    code: room.code,
+    phase: room.phase,
     players,
-    phase: game.phase,
-    currentTurnIndex: game.currentTurnIndex,
-    turnOrder: game.turnOrder,
-    giftPoolCount: game.giftPool.length,
-    revealIndex: game.revealIndex,
-    currentPlayerId: game.turnOrder[game.currentTurnIndex] || null,
-    lastStolenFrom: game.lastStolenFrom
+    giftsInPool,
+    playerGifts: Object.fromEntries(playerGifts),
+    currentPlayerId: room.currentPlayerId,
+    turnOrder: room.turnOrder,
+    currentTurnIndex: room.currentTurnIndex,
+    lastStolenGiftId: room.lastStolenGiftId,
+    lastStolenFromPlayerId: room.lastStolenFromPlayerId,
+    revealedGifts: room.revealedGifts,
+    revealIndex: room.revealIndex,
+    hostId: room.hostId
   };
 }
 
+// Socket.io connection handling
 io.on('connection', (socket) => {
   console.log('User connected:', socket.id);
-  let currentGameId = null;
+  
+  let currentRoom = null;
   let currentPlayerId = null;
 
-  socket.on('joinGame', ({ gameId, playerName, avatar }) => {
-    currentGameId = gameId;
-    currentPlayerId = socket.id;
+  // Create a new room
+  socket.on('createRoom', (callback) => {
+    const room = createRoom();
+    callback({ success: true, roomCode: room.code });
+  });
 
-    if (!games.has(gameId)) {
-      games.set(gameId, createGame(gameId));
+  // Check if room exists
+  socket.on('checkRoom', (roomCode, callback) => {
+    const room = rooms.get(roomCode.toUpperCase());
+    if (room) {
+      callback({ exists: true, phase: room.phase });
+    } else {
+      callback({ exists: false });
+    }
+  });
+
+  // Join a room
+  socket.on('joinRoom', ({ roomCode, playerName, avatar }, callback) => {
+    const code = roomCode.toUpperCase();
+    let room = rooms.get(code);
+    
+    if (!room) {
+      // Create room if it doesn't exist
+      room = createRoom();
+      rooms.delete(room.code);
+      room.code = code;
+      rooms.set(code, room);
     }
 
-    const game = games.get(gameId);
-    
-    if (game.phase !== 'lobby') {
-      socket.emit('error', { message: 'Game already in progress' });
+    if (room.phase !== PHASES.LOBBY) {
+      callback({ success: false, error: 'Game already in progress' });
       return;
     }
 
-    game.players.set(socket.id, {
-      id: socket.id,
+    const playerId = uuidv4();
+    const player = {
+      id: playerId,
       name: playerName,
       avatar: avatar,
-      hasGift: false,
-      currentGift: null,
-      isReady: false
-    });
+      socketId: socket.id,
+      isConnected: true
+    };
 
-    socket.join(gameId);
-    io.to(gameId).emit('gameState', getGameState(game));
-    console.log(`${playerName} joined game ${gameId}`);
+    room.players.set(playerId, player);
+    
+    // First player becomes host
+    if (room.players.size === 1) {
+      room.hostId = playerId;
+    }
+
+    socket.join(code);
+    currentRoom = room;
+    currentPlayerId = playerId;
+
+    callback({ success: true, playerId, roomState: getRoomState(room) });
+    
+    // Broadcast updated state to all players
+    socket.to(code).emit('roomUpdate', getRoomState(room));
   });
 
-  socket.on('submitGift', ({ title, image }) => {
-    if (!currentGameId) return;
-    const game = games.get(currentGameId);
-    if (!game) return;
+  // Submit gift
+  socket.on('submitGift', ({ title, image }, callback) => {
+    if (!currentRoom || !currentPlayerId) {
+      callback({ success: false, error: 'Not in a room' });
+      return;
+    }
 
-    const player = game.players.get(socket.id);
-    if (!player) return;
+    // Check if player already submitted a gift
+    const alreadySubmitted = Array.from(currentRoom.gifts.values())
+      .some(gift => gift.creatorId === currentPlayerId);
+    
+    if (alreadySubmitted) {
+      callback({ success: false, error: 'Already submitted a gift' });
+      return;
+    }
 
-    const giftId = `gift_${socket.id}_${Date.now()}`;
-    const gift = {
+    const giftId = uuidv4();
+    currentRoom.gifts.set(giftId, {
       id: giftId,
       title,
       image,
-      ownerId: socket.id,
-      originalOwnerId: socket.id,
-      revealed: false
+      creatorId: currentPlayerId
+    });
+
+    callback({ success: true });
+    
+    // Broadcast updated state
+    io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
+  });
+
+  // Start game (host only)
+  socket.on('startGame', (callback) => {
+    console.log('startGame called by', currentPlayerId);
+    console.log('currentRoom:', currentRoom?.code);
+    console.log('hostId:', currentRoom?.hostId);
+    
+    if (!currentRoom || !currentPlayerId) {
+      console.log('Error: Not in a room');
+      callback({ success: false, error: 'Not in a room' });
+      return;
+    }
+
+    if (currentRoom.hostId !== currentPlayerId) {
+      console.log('Error: Not the host');
+      callback({ success: false, error: 'Only host can start game' });
+      return;
+    }
+
+    if (currentRoom.players.size < 2) {
+      console.log('Error: Not enough players:', currentRoom.players.size);
+      callback({ success: false, error: 'Need at least 2 players' });
+      return;
+    }
+
+    // Check all players have submitted gifts
+    const playersWithGifts = new Set();
+    currentRoom.gifts.forEach(gift => playersWithGifts.add(gift.creatorId));
+    
+    console.log('Players:', currentRoom.players.size);
+    console.log('Players with gifts:', playersWithGifts.size);
+    
+    if (playersWithGifts.size !== currentRoom.players.size) {
+      callback({ success: false, error: 'Not all players have submitted gifts' });
+      return;
+    }
+
+    console.log('Starting game!');
+    
+    // Randomize turn order
+    currentRoom.turnOrder = Array.from(currentRoom.players.keys())
+      .sort(() => Math.random() - 0.5);
+    
+    currentRoom.currentTurnIndex = 0;
+    currentRoom.currentPlayerId = currentRoom.turnOrder[0];
+    currentRoom.phase = PHASES.PLAYING;
+
+    callback({ success: true });
+    io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
+    io.to(currentRoom.code).emit('gameStarted');
+  });
+
+  // Take gift from pool
+  socket.on('takeFromPool', ({ giftId }, callback) => {
+    if (!currentRoom || !currentPlayerId) {
+      callback({ success: false, error: 'Not in a room' });
+      return;
+    }
+
+    if (currentRoom.currentPlayerId !== currentPlayerId) {
+      callback({ success: false, error: 'Not your turn' });
+      return;
+    }
+
+    // Check gift exists and is in pool
+    const gift = Array.from(currentRoom.gifts.entries())
+      .find(([id]) => id === giftId);
+    
+    if (!gift || currentRoom.giftOwnership.has(giftId)) {
+      callback({ success: false, error: 'Gift not available' });
+      return;
+    }
+
+    // Assign gift to player
+    currentRoom.giftOwnership.set(giftId, currentPlayerId);
+    currentRoom.lastStolenGiftId = null;
+    currentRoom.lastStolenFromPlayerId = null;
+
+    // Move to next turn
+    advanceTurn(currentRoom);
+
+    callback({ success: true });
+    io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
+    io.to(currentRoom.code).emit('giftTaken', {
+      playerId: currentPlayerId,
+      playerName: currentRoom.players.get(currentPlayerId).name,
+      fromPool: true
+    });
+  });
+
+  // Steal gift from another player
+  socket.on('stealGift', ({ fromPlayerId }, callback) => {
+    if (!currentRoom || !currentPlayerId) {
+      callback({ success: false, error: 'Not in a room' });
+      return;
+    }
+
+    if (currentRoom.currentPlayerId !== currentPlayerId) {
+      callback({ success: false, error: 'Not your turn' });
+      return;
+    }
+
+    // Find the gift owned by fromPlayerId
+    let stolenGiftId = null;
+    currentRoom.giftOwnership.forEach((ownerId, giftId) => {
+      if (ownerId === fromPlayerId) {
+        stolenGiftId = giftId;
+      }
+    });
+
+    if (!stolenGiftId) {
+      callback({ success: false, error: 'Player has no gift to steal' });
+      return;
+    }
+
+    // Check steal-back rule
+    if (stolenGiftId === currentRoom.lastStolenGiftId) {
+      callback({ success: false, error: 'Cannot steal back the same gift' });
+      return;
+    }
+
+    // Transfer ownership
+    currentRoom.giftOwnership.set(stolenGiftId, currentPlayerId);
+    currentRoom.lastStolenGiftId = stolenGiftId;
+    currentRoom.lastStolenFromPlayerId = fromPlayerId;
+
+    // The player who was stolen from gets the next turn
+    // But we need to check if game should end
+    const unclaimedGifts = Array.from(currentRoom.gifts.keys())
+      .filter(giftId => !currentRoom.giftOwnership.has(giftId));
+
+    if (unclaimedGifts.length === 0) {
+      // All gifts claimed, game ends
+      currentRoom.phase = PHASES.REVEAL;
+      currentRoom.currentPlayerId = null;
+      prepareReveal(currentRoom);
+    } else {
+      // Stolen-from player gets next turn
+      currentRoom.currentPlayerId = fromPlayerId;
+    }
+
+    callback({ success: true });
+    io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
+    io.to(currentRoom.code).emit('giftStolen', {
+      thiefId: currentPlayerId,
+      thiefName: currentRoom.players.get(currentPlayerId).name,
+      victimId: fromPlayerId,
+      victimName: currentRoom.players.get(fromPlayerId).name
+    });
+
+    if (currentRoom.phase === PHASES.REVEAL) {
+      io.to(currentRoom.code).emit('revealPhase');
+    }
+  });
+
+  // Reveal next gift
+  socket.on('revealNext', (callback) => {
+    if (!currentRoom) {
+      callback({ success: false, error: 'Not in a room' });
+      return;
+    }
+
+    if (currentRoom.phase !== PHASES.REVEAL) {
+      callback({ success: false, error: 'Not in reveal phase' });
+      return;
+    }
+
+    if (currentRoom.revealIndex >= currentRoom.gifts.size) {
+      currentRoom.phase = PHASES.FINISHED;
+      callback({ success: true, finished: true });
+      io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
+      io.to(currentRoom.code).emit('gameFinished');
+      return;
+    }
+
+    const giftIds = Array.from(currentRoom.giftOwnership.keys());
+    const giftId = giftIds[currentRoom.revealIndex];
+    const gift = currentRoom.gifts.get(giftId);
+    const ownerId = currentRoom.giftOwnership.get(giftId);
+    const owner = currentRoom.players.get(ownerId);
+    const creator = currentRoom.players.get(gift.creatorId);
+
+    const revealData = {
+      giftId,
+      title: gift.title,
+      image: gift.image,
+      ownerId,
+      ownerName: owner?.name || 'Unknown',
+      ownerAvatar: owner?.avatar,
+      creatorId: gift.creatorId,
+      creatorName: creator?.name || 'Unknown',
+      creatorAvatar: creator?.avatar
     };
 
-    game.gifts.set(giftId, gift);
-    game.giftPool.push(giftId);
-    player.hasGift = true;
-    player.isReady = true;
+    currentRoom.revealedGifts.push(revealData);
+    currentRoom.revealIndex++;
 
-    io.to(currentGameId).emit('gameState', getGameState(game));
-    socket.emit('giftSubmitted', { giftId });
-    console.log(`${player.name} submitted gift: ${title}`);
+    callback({ success: true, revealData, finished: false });
+    io.to(currentRoom.code).emit('giftRevealed', revealData);
+    io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
   });
 
-  socket.on('startGame', () => {
-    if (!currentGameId) return;
-    const game = games.get(currentGameId);
-    if (!game) return;
-
-    const players = Array.from(game.players.values());
-    if (players.length < 2) {
-      socket.emit('error', { message: 'Need at least 2 players' });
-      return;
-    }
-
-    const allReady = players.every(p => p.isReady);
-    if (!allReady) {
-      socket.emit('error', { message: 'All players must submit their gifts first' });
-      return;
-    }
-
-    // Randomize turn order
-    game.turnOrder = Array.from(game.players.keys()).sort(() => Math.random() - 0.5);
-    game.currentTurnIndex = 0;
-    game.phase = 'playing';
-
-    io.to(currentGameId).emit('gameState', getGameState(game));
-    io.to(currentGameId).emit('gameStarted', { turnOrder: game.turnOrder });
-    console.log(`Game ${currentGameId} started!`);
-  });
-
-  socket.on('takeFromPool', () => {
-    if (!currentGameId) return;
-    const game = games.get(currentGameId);
-    if (!game || game.phase !== 'playing') return;
-
-    const currentPlayerId = game.turnOrder[game.currentTurnIndex];
-    if (socket.id !== currentPlayerId) {
-      socket.emit('error', { message: 'Not your turn!' });
-      return;
-    }
-
-    if (game.giftPool.length === 0) {
-      socket.emit('error', { message: 'No gifts in pool!' });
-      return;
-    }
-
-    const player = game.players.get(socket.id);
-    const randomIndex = Math.floor(Math.random() * game.giftPool.length);
-    const giftId = game.giftPool.splice(randomIndex, 1)[0];
-    const gift = game.gifts.get(giftId);
-
-    player.currentGift = gift;
-    gift.ownerId = socket.id;
-    game.lastStolenFrom = null;
-
-    // Initialize steal count for this gift
-    if (!game.stealCounts.has(giftId)) {
-      game.stealCounts.set(giftId, 0);
-    }
-
-    advanceTurn(game);
-    io.to(currentGameId).emit('gameState', getGameState(game));
-    io.to(currentGameId).emit('action', { 
-      type: 'took', 
-      playerName: player.name,
-      giftTitle: gift.title
-    });
-  });
-
-  socket.on('stealGift', ({ targetPlayerId }) => {
-    if (!currentGameId) return;
-    const game = games.get(currentGameId);
-    if (!game || game.phase !== 'playing') return;
-
-    const currentPlayerId = game.turnOrder[game.currentTurnIndex];
-    if (socket.id !== currentPlayerId) {
-      socket.emit('error', { message: 'Not your turn!' });
-      return;
-    }
-
-    // Can't steal back from who just stole from you
-    if (game.lastStolenFrom === targetPlayerId) {
-      socket.emit('error', { message: 'Cannot steal back immediately!' });
-      return;
-    }
-
-    const targetPlayer = game.players.get(targetPlayerId);
-    if (!targetPlayer || !targetPlayer.currentGift) {
-      socket.emit('error', { message: 'Target has no gift!' });
-      return;
-    }
-
-    const gift = targetPlayer.currentGift;
-    
-    // Check if gift has been stolen 3 times (locked)
-    const stealCount = game.stealCounts.get(gift.id) || 0;
-    if (stealCount >= 3) {
-      socket.emit('error', { message: 'This gift is locked (stolen 3 times)!' });
-      return;
-    }
-
-    const player = game.players.get(socket.id);
-    
-    // Transfer gift
-    player.currentGift = gift;
-    gift.ownerId = socket.id;
-    targetPlayer.currentGift = null;
-    game.lastStolenFrom = socket.id;
-    
-    // Increment steal count
-    game.stealCounts.set(gift.id, stealCount + 1);
-
-    // Target player gets to go next (unless they're out of options)
-    const targetHasOptions = game.giftPool.length > 0 || 
-      Array.from(game.players.values()).some(p => 
-        p.id !== targetPlayerId && 
-        p.currentGift && 
-        p.id !== socket.id &&
-        (game.stealCounts.get(p.currentGift.id) || 0) < 3
-      );
-
-    if (targetHasOptions) {
-      // Insert target player's turn next
-      game.currentTurnIndex = game.turnOrder.indexOf(targetPlayerId);
-    } else {
-      advanceTurn(game);
-    }
-
-    io.to(currentGameId).emit('gameState', getGameState(game));
-    io.to(currentGameId).emit('action', { 
-      type: 'stole', 
-      playerName: player.name, 
-      targetName: targetPlayer.name,
-      giftTitle: gift.title
-    });
-  });
-
-  socket.on('revealNext', () => {
-    if (!currentGameId) return;
-    const game = games.get(currentGameId);
-    if (!game || game.phase !== 'revealing') return;
-
-    const playersWithGifts = Array.from(game.players.values()).filter(p => p.currentGift);
-    
-    if (game.revealIndex < playersWithGifts.length) {
-      const player = playersWithGifts[game.revealIndex];
-      player.currentGift.revealed = true;
-      game.revealIndex++;
-
-      io.to(currentGameId).emit('gameState', getGameState(game));
-      io.to(currentGameId).emit('giftRevealed', {
-        playerName: player.name,
-        gift: {
-          title: player.currentGift.title,
-          image: player.currentGift.image
-        }
-      });
-
-      if (game.revealIndex >= playersWithGifts.length) {
-        game.phase = 'finished';
-        io.to(currentGameId).emit('gameState', getGameState(game));
-        io.to(currentGameId).emit('gameFinished');
-      }
-    }
-  });
-
-  function advanceTurn(game) {
-    // Check if everyone has a gift or pool is empty
-    const playersWithoutGifts = Array.from(game.players.values()).filter(p => !p.currentGift);
-    
-    if (playersWithoutGifts.length === 0 || 
-        (game.giftPool.length === 0 && !canAnyoneSteal(game))) {
-      // Move to reveal phase
-      game.phase = 'revealing';
-      game.revealIndex = 0;
-      return;
-    }
-
-    // Find next player without a gift
-    let nextIndex = (game.currentTurnIndex + 1) % game.turnOrder.length;
-    let attempts = 0;
-    while (attempts < game.turnOrder.length) {
-      const playerId = game.turnOrder[nextIndex];
-      const player = game.players.get(playerId);
-      if (!player.currentGift) {
-        game.currentTurnIndex = nextIndex;
-        return;
-      }
-      nextIndex = (nextIndex + 1) % game.turnOrder.length;
-      attempts++;
-    }
-    
-    // Everyone has a gift
-    game.phase = 'revealing';
-    game.revealIndex = 0;
-  }
-
-  function canAnyoneSteal(game) {
-    return Array.from(game.players.values()).some(p => 
-      p.currentGift && (game.stealCounts.get(p.currentGift.id) || 0) < 3
-    );
-  }
-
+  // Disconnect handling
   socket.on('disconnect', () => {
     console.log('User disconnected:', socket.id);
-    if (currentGameId) {
-      const game = games.get(currentGameId);
-      if (game && game.phase === 'lobby') {
-        game.players.delete(socket.id);
-        io.to(currentGameId).emit('gameState', getGameState(game));
+    
+    if (currentRoom && currentPlayerId) {
+      const player = currentRoom.players.get(currentPlayerId);
+      if (player) {
+        player.isConnected = false;
+        io.to(currentRoom.code).emit('roomUpdate', getRoomState(currentRoom));
       }
     }
   });
 });
 
-// Serve the React app for all routes
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, 'public', 'index.html'));
-});
+// Helper function to advance turn
+function advanceTurn(room) {
+  room.currentTurnIndex++;
+  
+  // Check if all gifts are claimed
+  const unclaimedGifts = Array.from(room.gifts.keys())
+    .filter(giftId => !room.giftOwnership.has(giftId));
 
+  if (unclaimedGifts.length === 0 || room.currentTurnIndex >= room.turnOrder.length) {
+    // Game ends, move to reveal phase
+    room.phase = PHASES.REVEAL;
+    room.currentPlayerId = null;
+    prepareReveal(room);
+    io.to(room.code).emit('revealPhase');
+  } else {
+    room.currentPlayerId = room.turnOrder[room.currentTurnIndex];
+  }
+}
+
+// Prepare for reveal phase
+function prepareReveal(room) {
+  room.revealedGifts = [];
+  room.revealIndex = 0;
+}
+
+// Start server
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
   console.log(`White Elephant server running on port ${PORT}`);
+  console.log(`Open http://localhost:${PORT} to play`);
 });
